@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIRGUARD — Pollution-Aware Routing Verification Console</title>
+  <meta name="description" content="Interactive testing and verification console for AIRGUARD backend, featuring dual-mode mock datasets and live Google Maps API route analysis.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-wrapper">
+    <!-- Main Application Header -->
+    <header class="app-header">
+      <div class="brand-section">
+        <span class="logo-badge">AIRGUARD</span>
+        <div>
+          <h1 class="app-title">Route Optimization & Integration Console</h1>
+          <p class="app-subtitle">Air Pollution Monitoring & Multi-Objective Navigation</p>
+        </div>
+      </div>
+
+      <!-- Mode Switcher -->
+      <nav class="mode-toggle-group" aria-label="Testing Mode Selector">
+        <button id="btnModeMock" class="mode-btn active" type="button" aria-pressed="true">
+          <span>●</span> Mode A: Mock Mode
+        </button>
+        <button id="btnModeLive" class="mode-btn" type="button" aria-pressed="false">
+          <span>●</span> Mode B: Live Backend API
+        </button>
+      </nav>
+    </header>
+
+    <!-- Mode Explanation Banner -->
+    <div id="modeBanner" class="mode-indicator-bar mode-mock">
+      <div>
+        <strong>Mode A Active (Deterministic Mock Data):</strong> Testing with offline synthetic datasets matching backend Pydantic schemas without invoking paid APIs.
+      </div>
+      <span class="status-pill" id="modePill">MOCK DATA</span>
+    </div>
+
+    <!-- Main Content Grid -->
+    <main class="layout-grid">
+      <!-- Left Panel: Input Controls -->
+      <section class="panel-card" aria-labelledby="controlsHeading">
+        <div class="panel-title" id="controlsHeading">
+          <span>1. Route Configuration</span>
+          <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">Parameters</span>
+        </div>
+
+        <!-- Scenario Presets -->
+        <div class="scenario-selector">
+          <label class="field-label" style="margin-bottom: 6px; display: block;">Quick-Load Scenarios:</label>
+          <div class="scenario-chips" id="scenarioChipsContainer">
+            <button type="button" class="chip-btn selected" data-scenario="delhi_noida_3way" id="scenarioDelhiNoida">
+              <span class="chip-title">Delhi CP → Noida Sec 62</span>
+              <span class="chip-desc">3 routes • Faster / Dirty vs Clean Parkway</span>
+            </button>
+            <button type="button" class="chip-btn" data-scenario="smog_tie_break" id="scenarioSmogTie">
+              <span class="chip-title">Saket → Cyber City</span>
+              <span class="chip-desc">Smog tie-break • 60s delay saves 82% exposure</span>
+            </button>
+            <button type="button" class="chip-btn" data-scenario="single_route" id="scenarioSingleRoute">
+              <span class="chip-title">Arterial Corridor</span>
+              <span class="chip-desc">Single route candidate • No alternatives</span>
+            </button>
+            <button type="button" class="chip-btn" data-scenario="missing_pollution_data" id="scenarioMissingAQI">
+              <span class="chip-title">Remote Corridor</span>
+              <span class="chip-desc">Missing AQI data • Safe fallback without fake claims</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Form Fields -->
+        <form id="routePlanForm" class="form-section">
+          <!-- Backend Endpoint (relevant for Mode B) -->
+          <div class="form-group" id="endpointGroup">
+            <label class="field-label" for="endpointUrl">FastAPI Endpoint URL</label>
+            <input type="url" id="endpointUrl" class="text-input" value="http://localhost:8000/routes/pollution-aware" required>
+            <span class="input-hint">Default local route optimization endpoint</span>
+          </div>
+
+          <!-- Origin Coordinates -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="field-label" for="originLat">Origin Latitude</label>
+              <input type="number" step="0.000001" min="-90" max="90" id="originLat" class="text-input" value="28.6315" required>
+            </div>
+            <div class="form-group">
+              <label class="field-label" for="originLng">Origin Longitude</label>
+              <input type="number" step="0.000001" min="-180" max="180" id="originLng" class="text-input" value="77.2167" required>
+            </div>
+          </div>
+
+          <!-- Destination Coordinates -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="field-label" for="destLat">Destination Latitude</label>
+              <input type="number" step="0.000001" min="-90" max="90" id="destLat" class="text-input" value="28.6280" required>
+            </div>
+            <div class="form-group">
+              <label class="field-label" for="destLng">Destination Longitude</label>
+              <input type="number" step="0.000001" min="-180" max="180" id="destLng" class="text-input" value="77.3649" required>
+            </div>
+          </div>
+
+          <!-- Preference and Mode -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="field-label" for="preferenceSelect">Trade-Off Preference</label>
+              <select id="preferenceSelect" class="select-input">
+                <option value="balanced">Balanced (50% Time / 50% Pollution)</option>
+                <option value="cleaner" selected>Cleaner (15% Time / 85% Pollution)</option>
+                <option value="faster">Faster (85% Time / 15% Pollution)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="field-label" for="travelModeSelect">Travel Mode</label>
+              <select id="travelModeSelect" class="select-input">
+                <option value="DRIVE" selected>DRIVE (Car / Taxi)</option>
+                <option value="TWO_WHEELER">TWO_WHEELER (Motorcycle)</option>
+                <option value="BICYCLE">BICYCLE</option>
+                <option value="WALK">WALK</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px;">
+            <input type="checkbox" id="computeAlternativesCheckbox" checked style="width: auto; cursor: pointer;">
+            <label class="field-label" for="computeAlternativesCheckbox" style="cursor: pointer; margin-bottom: 0;">
+              Compute alternative route options
+            </label>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="form-actions">
+            <button type="submit" id="btnSubmitPlan" class="btn-primary">
+              Run Route Analysis
+            </button>
+            <button type="button" id="btnResetForm" class="btn-secondary">
+              Reset
+            </button>
+          </div>
+        </form>
+
+        <!-- Backend Health Status Box -->
+        <div class="backend-health-box" id="healthBox">
+          <div>
+            <span class="health-dot checking" id="healthDot"></span>
+            <span id="healthStatusText">Checking backend (http://localhost:8000)...</span>
+          </div>
+          <button type="button" id="btnCheckHealth" class="btn-secondary" style="padding: 4px 8px; font-size: 11px; flex: none;">
+            Ping
+          </button>
+        </div>
+      </section>
+
+      <!-- Right Panel: Results & Route Comparison -->
+      <section class="panel-card" aria-labelledby="resultsHeading">
+        <div class="panel-title" id="resultsHeading">
+          <span>2. Route Optimization Results</span>
+          <span id="resultsDataSourceBadge" style="font-size: 11px; color: var(--text-muted); font-weight: normal;">No data loaded</span>
+        </div>
+
+        <div id="resultsContainer" class="results-container">
+          <!-- Initial Empty State -->
+          <div id="emptyState" class="empty-state">
+            <div class="empty-state-icon">🧭</div>
+            <h3 style="font-size: 16px; margin-bottom: 6px; color: var(--text-main);">Ready for Route Analysis</h3>
+            <p style="font-size: 13px; max-width: 440px; margin: 0 auto;">
+              Select a test scenario and click <strong>Run Route Analysis</strong> to evaluate multi-objective route candidates, cumulative pollution exposure, and trade-off rankings.
+            </p>
+          </div>
+
+          <!-- Loading In-Progress State -->
+          <div id="loadingState" style="display: none; text-align: center; padding: 48px 20px;">
+            <div style="font-size: 28px; margin-bottom: 12px; animation: spin 1s infinite linear;">⚙️</div>
+            <div style="font-size: 15px; font-weight: 600;" id="loadingText">Processing route geometry & air quality...</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Evaluating environmental checkpoints and multi-criteria scores</div>
+          </div>
+
+          <!-- Error Alert Banner -->
+          <div id="errorBanner" class="error-banner" style="display: none;"></div>
+
+          <!-- Active Results Content -->
+          <div id="activeResults" style="display: none;">
+            <!-- Trade-off Summary Box -->
+            <div id="summaryBanner" class="summary-banner">
+              <span class="summary-icon">💡</span>
+              <div id="summaryText"></div>
+            </div>
+
+            <!-- Limitations Alert (if any) -->
+            <div id="limitationsBox" class="limitations-alert" style="display: none; margin-bottom: 14px;"></div>
+
+            <!-- Route Cards List -->
+            <div id="routesList" style="display: flex; flex-direction: column; gap: 14px;"></div>
+
+            <!-- Debug & Raw API Inspection Accordion -->
+            <section class="debug-section" aria-label="Raw API Inspector">
+              <button type="button" id="debugToggleBtn" class="debug-toggle">
+                <span>View Raw API Request & Response JSON</span>
+                <span id="debugChevron">▼</span>
+              </button>
+              <div id="debugContent" class="debug-content" style="display: none;">
+                <button type="button" id="copyJsonBtn" class="copy-json-btn">Copy JSON</button>
+                <div style="margin-bottom: 8px; color: var(--accent-blue); font-weight: bold;">[SENT REQUEST PAYLOAD]</div>
+                <pre id="debugRequestPayload" style="margin-bottom: 14px; white-space: pre-wrap;"></pre>
+                <div style="margin-bottom: 8px; color: var(--accent-emerald); font-weight: bold;">[RECEIVED RESPONSE JSON]</div>
+                <pre id="debugResponseJson" style="white-space: pre-wrap;"></pre>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer style="margin-top: 36px; padding-top: 16px; border-top: 1px solid var(--border-dim); text-align: center; font-size: 12px; color: var(--text-dim);">
+      AIRGUARD Architecture & Verification Harness • Mode A uses synthetic EPA-aligned test fixtures • Mode B integrates with FastAPI & Google Maps v2
+    </footer>
+  </div>
+
+  <!-- Core App Logic -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>

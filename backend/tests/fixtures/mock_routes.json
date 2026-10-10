@@ -1,0 +1,44 @@
+{
+  "scenarios": {
+    "standard_3way": {
+      "origin": {"latitude": 28.6315, "longitude": 77.2167},
+      "destination": {"latitude": 28.6280, "longitude": 77.3649},
+      "candidates": [
+        {
+          "route_id": "route-1-fast-expressway",
+          "description": "NH-24 Expressway",
+          "distance_meters": 16500,
+          "duration_seconds": 1200,
+          "polyline": "_p~iF~ps|U_ulLnnqC_mqNvxq`@"
+        },
+        {
+          "route_id": "route-2-balanced-bypass",
+          "description": "Ring Road Bypass",
+          "distance_meters": 18200,
+          "duration_seconds": 1440,
+          "polyline": "m`ziFwus|UemlLonqCamqNvxq`@"
+        },
+        {
+          "route_id": "route-3-clean-parkway",
+          "description": "Green Belt Parkway",
+          "distance_meters": 21000,
+          "duration_seconds": 1680,
+          "polyline": "k_ziFuvs|UamlLpnqCcmqNwxq`@"
+        }
+      ]
+    },
+    "single_route": {
+      "origin": {"latitude": 28.6315, "longitude": 77.2167},
+      "destination": {"latitude": 28.6280, "longitude": 77.3649},
+      "candidates": [
+        {
+          "route_id": "route-only-artery",
+          "description": "Sole Arterial Corridor",
+          "distance_meters": 12500,
+          "duration_seconds": 900,
+          "polyline": "m`ziFwus|UemlLonqCamqNvxq`@"
+        }
+      ]
+    }
+  }
+}

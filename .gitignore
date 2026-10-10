@@ -1,0 +1,54 @@
+# Python byte code and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Virtual Environments
+.venv/
+venv/
+**/backend/.venv/
+**/backend/venv/
+
+# Secrets and environment configs
+.env
+.env.*
+!.env.example
+**/backend/.env
+!**/backend/.env.example
+
+# IDE configurations
+.vscode/*
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary test outputs
+*.test_output.json
+*.mock_log
+
+
+# Frontend build and local secrets
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.env.local
+.env.*.local
+frontend/.env.local
+
+# Large ML Model Artifacts and Datasets (Do NOT commit to git)
+*.joblib
+*.pkl
+*.h5
+*.onnx
+*.csv
+**/app/ml/artifacts/*
+!**/app/ml/artifacts/.gitkeep
+

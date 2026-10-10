@@ -1,0 +1,3 @@
+# Keep this directory in git.
+# Download or place `pm25_model.joblib` and `delhi_clean.csv` here.
+# Note: Actual .joblib and .csv artifacts are ignored by .gitignore.

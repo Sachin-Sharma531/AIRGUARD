@@ -1,0 +1,54 @@
+{
+  "synthetic_readings": {
+    "clean_air": {
+      "aqi": 42,
+      "category": "Good",
+      "dominant_pollutant": "PM2.5",
+      "pollutants": {
+        "pm25": 10.2,
+        "pm10": 22.0,
+        "no2": 15.0
+      },
+      "is_valid": true
+    },
+    "moderate_air": {
+      "aqi": 115,
+      "category": "Unhealthy for Sensitive Groups",
+      "dominant_pollutant": "PM2.5",
+      "pollutants": {
+        "pm25": 41.5,
+        "pm10": 95.0,
+        "no2": 32.0
+      },
+      "is_valid": true
+    },
+    "polluted_air": {
+      "aqi": 210,
+      "category": "Very Unhealthy",
+      "dominant_pollutant": "PM2.5",
+      "pollutants": {
+        "pm25": 160.0,
+        "pm10": 280.0,
+        "no2": 65.0
+      },
+      "is_valid": true
+    },
+    "hazardous_air": {
+      "aqi": 320,
+      "category": "Hazardous",
+      "dominant_pollutant": "PM2.5",
+      "pollutants": {
+        "pm25": 270.0,
+        "pm10": 420.0
+      },
+      "is_valid": true
+    },
+    "unavailable": {
+      "aqi": null,
+      "category": null,
+      "dominant_pollutant": null,
+      "pollutants": {},
+      "is_valid": false
+    }
+  }
+}

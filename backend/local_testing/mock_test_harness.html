@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIRGUARD — Mock Data Test Harness</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #38bdf8;
+      --primary-hover: #0284c7;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 24px; min-height: 100vh; }
+    .container { max-width: 980px; margin: 0 auto; }
+    
+    header { margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+    h1 { font-size: 24px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+    .badge-mock { background: rgba(245, 158, 11, 0.2); color: var(--warning); border: 1px solid var(--warning); padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    h2 { font-size: 16px; margin-bottom: 14px; color: var(--primary); font-weight: 600; }
+
+    .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    button.preset-btn { background: #334155; border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+    button.preset-btn:hover { background: #475569; border-color: var(--primary); }
+
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    input, select { width: 100%; background: #0f172a; border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-size: 14px; }
+    input:focus, select:focus { outline: none; border-color: var(--primary); }
+    .row { display: flex; gap: 10px; }
+    .row > div { flex: 1; }
+
+    .btn-submit { background: var(--primary); color: #0f172a; border: none; font-weight: 600; width: 100%; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 15px; margin-top: 8px; transition: background 0.2s; }
+    .btn-submit:hover { background: var(--primary-hover); }
+
+    .status-alert { padding: 12px; border-radius: 6px; margin-top: 14px; font-size: 13px; line-height: 1.4; }
+    .status-alert.error { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #fca5a5; }
+    .status-alert.info { background: rgba(56, 189, 248, 0.15); border: 1px solid var(--primary); color: #bae6fd; }
+
+    .result-container { margin-top: 24px; }
+    .route-card { background: #0f172a; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; position: relative; }
+    .route-card.recommended { border-color: var(--success); box-shadow: 0 0 12px rgba(34, 197, 94, 0.2); }
+    .route-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .route-id { font-weight: 700; font-size: 15px; }
+    .pill-recommended { background: var(--success); color: #0f172a; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; text-transform: uppercase; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+    .metric-box { background: #1e293b; padding: 8px; border-radius: 6px; text-align: center; }
+    .metric-val { font-size: 16px; font-weight: 700; color: var(--text); }
+    .metric-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .notice { font-size: 12px; color: var(--muted); text-align: center; margin-top: 32px; border-top: 1px solid var(--border); padding-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>AIRGUARD Testing Harness</h1>
+      <span class="badge-mock">Synthetic Test Environment</span>
+    </header>
+
+    <div class="grid">
+      <!-- Controls Card -->
+      <div class="card">
+        <h2>1. Select Test Scenario</h2>
+        <div class="presets">
+          <button class="preset-btn" onclick="loadScenario('delhi_noida')">Delhi → Noida 3-Way</button>
+          <button class="preset-btn" onclick="loadScenario('smog_tie')">Smog Alert Tie-Break</button>
+          <button class="preset-btn" onclick="loadScenario('single_route')">Single Route Corridor</button>
+        </div>
+
+        <h2>2. Route Parameters</h2>
+        <div class="form-group">
+          <label>Backend Endpoint URL</label>
+          <input type="text" id="endpointUrl" value="http://localhost:8000/routes/pollution-aware">
+        </div>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Origin Latitude</label>
+            <input type="number" step="0.0001" id="origLat" value="28.6315">
+          </div>
+          <div class="form-group">
+            <label>Origin Longitude</label>
+            <input type="number" step="0.0001" id="origLng" value="77.2167">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Destination Latitude</label>
+            <input type="number" step="0.0001" id="destLat" value="28.6280">
+          </div>
+          <div class="form-group">
+            <label>Destination Longitude</label>
+            <input type="number" step="0.0001" id="destLng" value="77.3649">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Trade-Off Preference</label>
+            <select id="prefSelect">
+              <option value="balanced" selected>Balanced (50% Time / 50% Pollution)</option>
+              <option value="cleaner">Cleaner (15% Time / 85% Pollution)</option>
+              <option value="faster">Faster (85% Time / 15% Pollution)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Travel Mode</label>
+            <select id="modeSelect">
+              <option value="DRIVE" selected>DRIVE</option>
+              <option value="TWO_WHEELER">TWO_WHEELER</option>
+              <option value="BICYCLE">BICYCLE</option>
+              <option value="WALK">WALK</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn-submit" id="submitBtn" onclick="sendRouteRequest()">Run Route Plan</button>
+        <div id="statusAlert" style="display:none;"></div>
+      </div>
+
+      <!-- Results Card -->
+      <div class="card">
+        <h2>Test Results & Route Selection</h2>
+        <div id="resultsPlaceholder" style="color: var(--muted); text-align: center; padding: 40px 0;">
+          Select a scenario and click <strong>Run Route Plan</strong> to query the local backend.
+        </div>
+        <div id="resultsContent" style="display:none;">
+          <div id="summaryBox" class="status-alert info" style="margin-bottom: 14px;"></div>
+          <div id="routesList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notice">
+      AIRGUARD Local Mock Testing Suite • All route coordinates and pollution values represent synthetic mock datasets for testing purposes.
+    </div>
+  </div>
+
+  <script>
+    function loadScenario(type) {
+      if (type === 'delhi_noida') {
+        document.getElementById('origLat').value = 28.6315;
+        document.getElementById('origLng').value = 77.2167;
+        document.getElementById('destLat').value = 28.6280;
+        document.getElementById('destLng').value = 77.3649;
+        document.getElementById('prefSelect').value = 'cleaner';
+      } else if (type === 'smog_tie') {
+        document.getElementById('origLat').value = 28.5245;
+        document.getElementById('origLng').value = 77.2066;
+        document.getElementById('destLat').value = 28.4950;
+        document.getElementById('destLng').value = 77.0895;
+        document.getElementById('prefSelect').value = 'balanced';
+      } else if (type === 'single_route') {
+        document.getElementById('origLat').value = 28.6139;
+        document.getElementById('origLng').value = 77.2090;
+        document.getElementById('destLat').value = 28.5355;
+        document.getElementById('destLng').value = 77.3910;
+        document.getElementById('prefSelect').value = 'balanced';
+      }
+    }
+
+    async function sendRouteRequest() {
+      const btn = document.getElementById('submitBtn');
+      const alertBox = document.getElementById('statusAlert');
+      const placeholder = document.getElementById('resultsPlaceholder');
+      const resultsContent = document.getElementById('resultsContent');
+
+      btn.disabled = true;
+      btn.innerText = "Querying Local API...";
+      alertBox.style.display = 'none';
+
+      const payload = {
+        origin: {
+          latitude: parseFloat(document.getElementById('origLat').value),
+          longitude: parseFloat(document.getElementById('origLng').value)
+        },
+        destination: {
+          latitude: parseFloat(document.getElementById('destLat').value),
+          longitude: parseFloat(document.getElementById('destLng').value)
+        },
+        preference: document.getElementById('prefSelect').value,
+        travel_mode: document.getElementById('modeSelect').value,
+        compute_alternatives: true
+      };
+
+      try {
+        const res = await fetch(document.getElementById('endpointUrl').value, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || ("HTTP " + res.status));
+        }
+
+        placeholder.style.display = 'none';
+        resultsContent.style.display = 'block';
+
+        document.getElementById('summaryBox').innerText = data.summary;
+
+        const allRoutes = [data.recommended_route, ...(data.alternative_routes || [])];
+        const html = allRoutes.map(r => `
+          <div class="route-card ${r.is_recommended ? 'recommended' : ''}">
+            <div class="route-header">
+              <span class="route-id">${r.route_id} ${r.description ? ('• ' + r.description) : ''}</span>
+              ${r.is_recommended ? '<span class="pill-recommended">Recommended</span>' : ''}
+            </div>
+            <div class="metrics">
+              <div class="metric-box">
+                <div class="metric-val">${r.duration_formatted}</div>
+                <div class="metric-lbl">Duration</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-val">${r.distance_formatted}</div>
+                <div class="metric-lbl">Distance</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-val">${r.average_aqi !== null ? r.average_aqi : 'N/A'}</div>
+                <div class="metric-lbl">Avg AQI</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-val">${r.estimated_exposure_score !== null ? r.estimated_exposure_score : 'N/A'}</div>
+                <div class="metric-lbl">Exposure</div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+        document.getElementById('routesList').innerHTML = html;
+      } catch (err) {
+        alertBox.className = 'status-alert error';
+        alertBox.style.display = 'block';
+        alertBox.innerText = "Error: " + err.message;
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Run Route Plan";
+      }
+    }
+  </script>
+</body>
+</html>

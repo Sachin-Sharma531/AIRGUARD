@@ -1,0 +1,40 @@
+# Python byte code and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables & secrets
+.env
+.env.local
+.env.*.local
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Test & coverage artifacts
+.coverage
+htmlcov/
+*.test_output.json
+*.mock_log
+
+# Large ML Model Artifacts and Datasets (Do NOT commit to git)
+*.joblib
+*.pkl
+*.h5
+*.onnx
+*.csv
+app/ml/artifacts/*
+!app/ml/artifacts/.gitkeep
+
+

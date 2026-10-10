@@ -1,0 +1,20 @@
+{
+  "include": [
+    "backend"
+  ],
+  "extraPaths": [
+    "backend",
+    "backend/.venv/Lib/site-packages"
+  ],
+  "venvPath": "backend",
+  "venv": ".venv",
+  "executionEnvironments": [
+    {
+      "root": "backend",
+      "extraPaths": [
+        ".",
+        ".venv/Lib/site-packages"
+      ]
+    }
+  ]
+}
