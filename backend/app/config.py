@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     GOOGLE_AIR_QUALITY_API_KEY: Optional[str] = None
     GOOGLE_GEOCODING_API_KEY: Optional[str] = None
 
+    # Geocoding Configuration (OpenStreetMap Nominatim)
+    NOMINATIM_URL: str = "https://nominatim.openstreetmap.org/search"
+    NOMINATIM_USER_AGENT: str = "AIRGUARD/0.1.0 (AirGuard Clean Route Navigator; contact: https://github.com/airguard/airguard)"
+    GEOCODING_TIMEOUT_SECONDS: float = 10.0
+
     # Routing Service Configuration
     ROUTING_TIMEOUT_SECONDS: float = 10.0
     ROUTING_MAX_SAMPLE_POINTS: int = 8

@@ -1,0 +1,15 @@
+
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.git/
+.env
+.env.*
+!.env.example
+local_testing/
+*.mock_log
+*.test_output.json

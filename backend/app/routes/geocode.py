@@ -1,4 +1,7 @@
+import asyncio
 import logging
+import time
+from typing import Dict, Tuple
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,7 +12,20 @@ from app.services.http_client import get_http_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="", tags=["Geocoding"])
-GEOCODING_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+
+DEFAULT_NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
+DEFAULT_USER_AGENT = "AIRGUARD/0.1.0 (AirGuard Clean Route Navigator; https://github.com/airguard/airguard)"
+CACHE_TTL_SECONDS = 86400.0  # 24-hour cache TTL
+MAX_CACHE_SIZE = 1024
+
+# In-memory query cache: normalized query string -> (GeocodeResponse, expiry_timestamp)
+_geocode_cache: Dict[str, Tuple[GeocodeResponse, float]] = {}
+_geocode_lock = asyncio.Lock()
+
+
+def clear_geocode_cache() -> None:
+    """Utility to clear the geocode cache (used in tests and maintenance)."""
+    _geocode_cache.clear()
 
 
 @router.post(
@@ -17,88 +33,151 @@ GEOCODING_URL = "https://maps.googleapis.com/maps/api/geocode/json"
     response_model=GeocodeResponse,
     summary="Resolve an address or place name to coordinates",
     description=(
-        "Converts a human-readable address to latitude/longitude for the route planner. "
+        "Converts a human-readable address to latitude/longitude for the route planner "
+        "using OpenStreetMap Nominatim. "
         "Known demo places can be resolved by the frontend without this endpoint."
     ),
     responses={
         404: {"description": "No matching address was found."},
-        502: {"description": "Google Geocoding API rejected the request or returned an upstream error."},
-        503: {"description": "Google Geocoding API credentials are not configured."},
-        504: {"description": "The Google Geocoding API request timed out."},
+        502: {"description": "Nominatim API returned an upstream error or invalid response."},
+        504: {"description": "The Nominatim API request timed out."},
     },
 )
 async def geocode_address(
     payload: GeocodeRequest,
     settings: Settings = Depends(get_settings),
 ) -> GeocodeResponse:
-    api_key = settings.GOOGLE_GEOCODING_API_KEY or settings.GOOGLE_MAPS_API_KEY
-    if not api_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "Google Geocoding API key is not configured. Set GOOGLE_GEOCODING_API_KEY "
-                "or GOOGLE_MAPS_API_KEY in backend/.env."
-            ),
-        )
+    query = payload.address.strip()
+    cache_key = query.lower()
+    now = time.monotonic()
 
-    client = get_http_client(timeout=settings.ROUTING_TIMEOUT_SECONDS)
-    try:
-        response = await client.get(
-            GEOCODING_URL,
-            params={"address": payload.address, "key": api_key},
-            timeout=settings.ROUTING_TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
-        data = response.json()
-    except httpx.TimeoutException as exc:
-        logger.warning("Google Geocoding API request timed out")
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Google Geocoding API timed out. Please try again.",
-        ) from exc
-    except httpx.HTTPStatusError as exc:
-        logger.warning("Google Geocoding API returned HTTP %s", exc.response.status_code)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Google Geocoding API returned HTTP {exc.response.status_code}.",
-        ) from exc
-    except httpx.RequestError as exc:
-        logger.warning("Could not connect to Google Geocoding API: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Could not connect to Google Geocoding API.",
-        ) from exc
+    # Fast cache check before acquiring serialization lock
+    if cache_key in _geocode_cache:
+        cached_resp, expires_at = _geocode_cache[cache_key]
+        if now < expires_at:
+            logger.debug("Geocode cache hit for '%s'", query)
+            return cached_resp
+        del _geocode_cache[cache_key]
 
-    provider_status = data.get("status")
-    if provider_status == "ZERO_RESULTS":
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'No location was found for "{payload.address}". Try adding the city or region.',
-        )
-    if provider_status != "OK" or not data.get("results"):
-        if provider_status in {"REQUEST_DENIED", "OVER_DAILY_LIMIT"}:
-            detail = (
-                "Google Geocoding API denied the request. Enable the Geocoding API in the Google Cloud project, "
-                "check key restrictions and billing, then retry."
-            )
-        else:
-            detail = f"Google Geocoding API returned status {provider_status or 'UNKNOWN'}."
-        logger.warning("Google Geocoding API provider status: %s", provider_status)
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail)
-
-    first = data["results"][0]
-    location = first.get("geometry", {}).get("location", {})
-    try:
-        latitude = float(location["lat"])
-        longitude = float(location["lng"])
-    except (KeyError, TypeError, ValueError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Google Geocoding API returned an invalid coordinate result.",
-        ) from exc
-
-    return GeocodeResponse(
-        formatted_address=first.get("formatted_address", payload.address),
-        latitude=latitude,
-        longitude=longitude,
+    url = getattr(settings, "NOMINATIM_URL", DEFAULT_NOMINATIM_URL)
+    user_agent = getattr(settings, "NOMINATIM_USER_AGENT", DEFAULT_USER_AGENT)
+    timeout = getattr(
+        settings,
+        "GEOCODING_TIMEOUT_SECONDS",
+        getattr(settings, "ROUTING_TIMEOUT_SECONDS", 10.0),
     )
+
+    # Serialize Nominatim requests to strictly respect usage policy (no concurrent requests)
+    async with _geocode_lock:
+        now = time.monotonic()
+        # Double-check cache inside lock
+        if cache_key in _geocode_cache:
+            cached_resp, expires_at = _geocode_cache[cache_key]
+            if now < expires_at:
+                return cached_resp
+            del _geocode_cache[cache_key]
+
+        client = get_http_client(timeout=timeout)
+        headers = {"User-Agent": user_agent}
+        params = {
+            "q": query,
+            "format": "jsonv2",
+            "limit": 1,
+        }
+
+        try:
+            response = await client.get(
+                url,
+                params=params,
+                headers=headers,
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            data = response.json()
+        except httpx.TimeoutException as exc:
+            logger.warning("Nominatim API request timed out for '%s'", query)
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                detail="Nominatim Geocoding API timed out. Please try again.",
+            ) from exc
+        except httpx.HTTPStatusError as exc:
+            logger.warning("Nominatim API returned HTTP %s for '%s'", exc.response.status_code, query)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Nominatim Geocoding API returned HTTP {exc.response.status_code}.",
+            ) from exc
+        except httpx.RequestError as exc:
+            logger.warning("Could not connect to Nominatim API: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Could not connect to Nominatim Geocoding API.",
+            ) from exc
+        except Exception as exc:
+            logger.warning("Invalid JSON response from Nominatim API for '%s': %s", query, exc)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Nominatim Geocoding API returned an invalid response.",
+            ) from exc
+
+        if not isinstance(data, list):
+            logger.warning("Nominatim API returned non-list response for '%s': %s", query, type(data))
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Nominatim Geocoding API returned an invalid response structure.",
+            )
+
+        if not data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'No location was found for "{payload.address}". Try adding the city or region.',
+            )
+
+        first = data[0]
+        if not isinstance(first, dict):
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Nominatim Geocoding API returned an invalid result format.",
+            )
+
+        lat_val = first.get("lat")
+        lon_val = first.get("lon") if "lon" in first else first.get("lng")
+        if lat_val is None or lon_val is None:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Nominatim Geocoding API response missing coordinate fields.",
+            )
+
+        try:
+            latitude = float(lat_val)
+            longitude = float(lon_val)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Nominatim Geocoding API returned invalid coordinates.",
+            ) from exc
+
+        if not (-90.0 <= latitude <= 90.0 and -180.0 <= longitude <= 180.0):
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Nominatim Geocoding API returned out-of-range coordinates.",
+            )
+
+        formatted_address = first.get("display_name") or payload.address
+
+        result = GeocodeResponse(
+            formatted_address=str(formatted_address),
+            latitude=latitude,
+            longitude=longitude,
+        )
+
+        # Store in cache with eviction if limit exceeded
+        if len(_geocode_cache) >= MAX_CACHE_SIZE:
+            expired_keys = [k for k, (_, exp) in _geocode_cache.items() if now >= exp]
+            for k in expired_keys:
+                del _geocode_cache[k]
+            if len(_geocode_cache) >= MAX_CACHE_SIZE:
+                oldest_key = next(iter(_geocode_cache))
+                del _geocode_cache[oldest_key]
+
+        _geocode_cache[cache_key] = (result, now + CACHE_TTL_SECONDS)
+        return result

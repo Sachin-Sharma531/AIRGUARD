@@ -151,7 +151,7 @@ Payload:
 
 ### 4. `POST /geocode`
 
-Resolves address strings into geographic coordinates. Common demo locations (DTU, Rohini, CP, Noida Sec 62) are pre-mapped for offline evaluation.
+Resolves address strings into geographic coordinates via OpenStreetMap Nominatim (no Google API key required; address data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)). Common demo locations (DTU, Rohini, CP, Noida Sec 62) are pre-mapped for offline evaluation.
 
 ---
 

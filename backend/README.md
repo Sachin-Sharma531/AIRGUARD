@@ -95,7 +95,9 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ### `POST /geocode`
 
 - **Purpose**: Resolves a human-readable place name/address into latitude/longitude before route planning.
-- **Required Google API**: Geocoding API must be enabled for the configured key. A few common DTU/Delhi demo locations are resolved by the frontend without geocoding.
+- **Provider**: OpenStreetMap Nominatim Search API (`https://nominatim.openstreetmap.org/search`). No Google API key is required.
+- **Attribution**: Address data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
+- **Policy Compliance**: Identifies via custom `User-Agent`, caches queries in memory, and serializes requests to respect Nominatim usage guidelines.
 - **Request**:
   ```json
   { "address": "Connaught Place, New Delhi" }
