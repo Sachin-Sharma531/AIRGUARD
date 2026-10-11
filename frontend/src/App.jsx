@@ -1,28 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import './App.css'
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+import { apiFetch, API_BASE } from './api'
 
-async function apiFetch(endpoint, options = {}) {
-  const primaryUrl = API_BASE ? `${API_BASE}${endpoint}` : endpoint
-  try {
-    const res = await fetch(primaryUrl, options)
-    return res
-  } catch (err) {
-    // If relative proxy request fails (e.g. running on separate port), fallback to direct port 8000
-    if (!API_BASE || !primaryUrl.startsWith('http://localhost:8000')) {
-      try {
-        return await fetch(`http://localhost:8000${endpoint}`, options)
-      } catch {
-        return await fetch(`http://127.0.0.1:8000${endpoint}`, options)
-      }
-    }
-    throw err
-  }
-}
-
-// Popular Delhi/NCR demo locations. These let the team test the UI without a
-// geocoding key. Other text addresses are resolved through the backend /geocode endpoint.
+// Popular Delhi/NCR demo locations. These let the team test the UI quickly without typing coordinates.
+// Arbitrary text addresses are resolved through the backend /geocode endpoint via OpenStreetMap Nominatim.
 const LOCATION_PRESETS = [
   { names: ['dtu', 'delhi technological university'], label: 'Delhi Technological University (DTU)', latitude: 28.7501, longitude: 77.1177, station: 'Delhi - DTU' },
   { names: ['rohini', 'rohini delhi', 'rohini sector 7'], label: 'Rohini, Delhi', latitude: 28.7380, longitude: 77.0820, station: 'Delhi - Rohini' },
@@ -378,7 +360,8 @@ function App() {
             // Backend is still online since it returned an HTTP response
             setBackendStatus('online')
           } else {
-            setForecastError('Backend service is offline or unreachable on port 8000. Start it with `python -m uvicorn app.main:app --port 8000` or switch to Demo mode. Showing local prototype data.')
+            const unreachableTarget = API_BASE ? `at ${API_BASE}` : 'locally on port 8000'
+            setForecastError(`Backend service is unreachable ${unreachableTarget}. Ensure the service is active and permits cross-origin requests, or switch to Demo mode. Showing local prototype data.`)
             setBackendStatus('offline')
           }
         }
@@ -438,7 +421,7 @@ function App() {
         if (!response.ok) {
           if (response.status === 503) {
             throw new Error(
-              'Backend is connected! Upstream Google Routes API key is not configured in backend/.env. Switch to "Demo" mode (top-right) to view sample route optimization, or configure GOOGLE_MAPS_API_KEY in backend/.env.'
+              'Backend is connected! Upstream routing service credentials are not configured in the backend environment. Switch to "Demo" mode (top-right) to view sample route optimization, or configure routing API keys.'
             )
           }
           if (response.status === 404) throw new Error(data.detail || 'No route was found between those locations.')
@@ -812,8 +795,8 @@ function App() {
               {mode === 'live' && (
                 <div className="mode-info">
                   <strong>Live API mode</strong>
-                  <span>Uses the FastAPI backend. Known demo locations (DTU, Rohini, Connaught Place, Noida Sector 62, India Gate, Saket and Cyber City) work without geocoding; other addresses use the Google Geocoding API.</span>
-                  <code>{API_BASE}</code>
+                  <span>Uses the FastAPI backend. Known demo locations (DTU, Rohini, Connaught Place, Noida Sector 62, India Gate, Saket and Cyber City) resolve instantly; other addresses use OpenStreetMap Nominatim.</span>
+                  <code>{API_BASE || 'http://localhost:8000'}</code>
                 </div>
               )}
             </div>
@@ -844,13 +827,25 @@ function App() {
                 </div>
                 <button className="primary-btn" disabled={loading}>{loading ? 'Analyzing routes…' : mode === 'demo' ? 'Try demo analysis →' : 'Analyze live routes →'}</button>
               </form>
-              {error && <div className="error-card" role="alert"><strong>Could not analyze this trip</strong><span>{error}</span>{mode === 'live' && backendStatus === 'offline' && <small>Make sure the backend is running on port 8000. Instructions are in the project README.</small>}</div>}
+              {error && (
+                <div className="error-card" role="alert">
+                  <strong>Could not analyze this trip</strong>
+                  <span>{error}</span>
+                  {mode === 'live' && backendStatus === 'offline' && (
+                    <small>
+                      {API_BASE
+                        ? `Cannot reach backend at ${API_BASE}. Check ECS task status and CORS configuration.`
+                        : 'Make sure the backend is running. Instructions are in the project README.'}
+                    </small>
+                  )}
+                </div>
+              )}
               <div className="privacy-note">
   {mode === 'demo'
     ? 'DEMO MODE: Illustrative sample routes, travel times, and pollution values. They are not calculated for your selected journey and are not live measurements.'
     : 'Coordinates are sent to your backend to calculate routes'}
 </div>
-              {mode === 'live' && <div className="location-hint">Tip: try DTU → Rohini first. For a custom address, enable Google Geocoding API on the same Google Cloud project.</div>}
+              {mode === 'live' && <div className="location-hint">Tip: try DTU → Rohini first. Custom addresses are resolved automatically via OpenStreetMap Nominatim.</div>}
             </div>
           </section>
         ) : (
@@ -988,7 +983,12 @@ function App() {
         )}
       </main>
 
-      <footer><span>AIRGUARD</span><span>Environmental Hacks · Bharat Builds Tour 2026</span><span>Air-quality estimates are informational, not medical advice.</span></footer>
+      <footer>
+        <span>AIRGUARD</span>
+        <span>Environmental Hacks · Bharat Builds Tour 2026</span>
+        <span>Geocoding © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>OpenStreetMap contributors</a></span>
+        <span>Air-quality estimates are informational, not medical advice.</span>
+      </footer>
     </div>
   )
 }
