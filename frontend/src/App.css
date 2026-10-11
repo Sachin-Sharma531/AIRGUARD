@@ -125,49 +125,9 @@ footer { border-top:1px solid rgba(255,255,255,.06); padding:22px 6vw; display:f
 .limitations-box strong { color: #b0c0b7; }
 .limitations-box ul { margin: 8px 0 0; padding-left: 18px; }
 .limitations-box li + li { margin-top: 4px; }
-
-/* Navigation Tabs */
-.nav-tabs { display: flex; gap: 6px; background: rgba(255,255,255,.05); padding: 5px; border-radius: 12px; border: 1px solid rgba(255,255,255,.09); }
-.tab-btn { background: none; border: 0; color: #8e9f98; padding: 8px 18px; border-radius: 9px; font-size: 12px; font-weight: 500; transition: all .18s; }
-.tab-btn:hover { color: #e0eee6; }
-.tab-btn.active { background: #162c23; color: #a6f2c6; font-weight: 700; border: 1px solid rgba(131,228,173,.3); box-shadow: 0 2px 10px rgba(0,0,0,.3); }
-
-/* Station Forecast Section */
-.forecast-layout { padding: 45px 0 75px; }
-.forecast-header { margin-bottom: 30px; }
-.forecast-header h1 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(34px, 4.5vw, 54px); letter-spacing: -.04em; margin: 10px 0; }
-.forecast-header h1 span { color: #86e5af; }
-.forecast-header p { color: #9aa8a1; max-width: 620px; line-height: 1.6; }
-.forecast-grid { display: grid; grid-template-columns: 1fr 1.35fr; gap: 28px; align-items: start; }
-.forecast-card-main, .forecast-card-results { background: rgba(16,29,24,.82); border: 1px solid rgba(144,224,177,.18); border-radius: 24px; padding: 28px; box-shadow: 0 24px 70px rgba(0,0,0,.3); }
-.station-select { background: #0a1713; border: 1px solid #21342c; border-radius: 12px; padding: 14px; color: #eaf2ee; width: 100%; margin-top: 8px; font-size: 14px; }
-.forecast-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 22px 0; }
-.forecast-metric-box { background: #0c1915; border: 1px solid #1b2c25; padding: 18px; border-radius: 16px; text-align: left; }
-.forecast-metric-box .metric-label { font-size: 10px; letter-spacing: .12em; color: #72857d; display: block; margin-bottom: 6px; font-weight: 700; }
-.forecast-metric-box .metric-val { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; color: #fff; }
-.forecast-metric-box .metric-unit { font-size: 11px; color: #7e948b; margin-left: 3px; font-weight: normal; }
-.trend-worse { color: #ff9b84 !important; }
-.trend-better { color: #83e4ad !important; }
-.trend-steady { color: #ffd27a !important; }
-.forecast-meta-row { display: flex; justify-content: space-between; padding: 11px 0; border-top: 1px solid #1b2c25; font-size: 12px; color: #889b92; }
-.forecast-meta-row strong { color: #d6e5de; }
-.advisory-box { margin-top: 22px; padding: 20px 22px; border-radius: 16px; border: 1px solid rgba(114,219,164,.25); background: rgba(30,68,50,.25); }
-.advisory-box h4 { margin: 0 0 6px; font-size: 13px; color: #a9f0c6; font-family: 'Space Grotesk', sans-serif; letter-spacing: .05em; }
-.advisory-box p { margin: 0; font-size: 13px; color: #b7cbbf; line-height: 1.6; }
-.prototype-warning-badge { margin-top: 22px; padding: 15px 18px; border-radius: 14px; border: 1px solid rgba(255,160,122,.28); background: rgba(70,25,20,.35); color: #f5b09f; font-size: 11px; line-height: 1.6; }
-.prototype-warning-badge strong { display: block; color: #ff8b74; margin-bottom: 4px; font-size: 10px; letter-spacing: .1em; }
-.quick-station-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.station-chip { background: #0e201a; border: 1px solid #20362c; color: #9db2a8; padding: 6px 12px; border-radius: 8px; font-size: 11px; cursor: pointer; transition: all .15s; }
-.station-chip:hover { border-color: #72dba4; color: #fff; }
-.station-chip.selected { background: #163627; border-color: #86e5af; color: #a6f2c6; font-weight: 600; }
-.route-forecast-callout { margin-top: 18px; padding: 16px 20px; border-radius: 16px; border: 1px solid rgba(114,219,164,.2); background: rgba(16,29,24,.6); }
-.route-forecast-callout-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-
 @media(max-width: 900px) {
   .topbar { height: auto; min-height: 78px; gap: 14px; flex-wrap: wrap; padding-top: 13px; padding-bottom: 13px; }
   .topbar-actions { flex-wrap: wrap; justify-content: flex-end; }
-  .forecast-grid { grid-template-columns: 1fr; }
-  .forecast-metrics { grid-template-columns: 1fr; }
 }
 @media(max-width: 560px) {
   .topbar-actions { width: 100%; justify-content: space-between; }

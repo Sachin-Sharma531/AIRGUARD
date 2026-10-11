@@ -1,30 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
-
 import { apiFetch, API_BASE } from './api'
 
-// Popular Delhi/NCR demo locations. These let the team test the UI quickly without typing coordinates.
-// Arbitrary text addresses are resolved through the backend /geocode endpoint via OpenStreetMap Nominatim.
+// Popular Delhi/NCR demo locations. These let the team test the UI without a
+// geocoding key. Other text addresses are resolved through the backend /geocode endpoint.
 const LOCATION_PRESETS = [
-  { names: ['dtu', 'delhi technological university'], label: 'Delhi Technological University (DTU)', latitude: 28.7501, longitude: 77.1177, station: 'Delhi - DTU' },
-  { names: ['rohini', 'rohini delhi', 'rohini sector 7'], label: 'Rohini, Delhi', latitude: 28.7380, longitude: 77.0820, station: 'Delhi - Rohini' },
-  { names: ['connaught place', 'cp', 'rajiv chowk'], label: 'Connaught Place, New Delhi', latitude: 28.6315, longitude: 77.2167, station: 'Delhi - Mandir Marg' },
-  { names: ['noida sector 62', 'sector 62 noida'], label: 'Sector 62, Noida', latitude: 28.6270, longitude: 77.3720, station: 'Noida - Sector 62' },
-  { names: ['india gate'], label: 'India Gate, New Delhi', latitude: 28.6129, longitude: 77.2295, station: 'Delhi - Major Dhyan Chand National Stadium' },
-  { names: ['saket', 'saket delhi'], label: 'Saket, New Delhi', latitude: 28.5245, longitude: 77.2066, station: 'Delhi - Sri Aurobindo Marg' },
-  { names: ['cyber city', 'gurugram cyber city', 'cyber hub'], label: 'Cyber City, Gurugram', latitude: 28.4949, longitude: 77.0895, station: 'Gurugram - Vikas Sadan' },
-]
-
-const DEFAULT_STATIONS = [
-  'Delhi - DTU',
-  'Delhi - Anand Vihar',
-  'Delhi - Punjabi Bagh',
-  'Delhi - R K Puram',
-  'Delhi - Shadipur',
-  'Delhi - Mandir Marg',
-  'Delhi - IGI Airport(T3)',
-  'Delhi - Jahangirpuri',
-  'Delhi - Rohini',
+  { names: ['dtu', 'delhi technological university'], label: 'Delhi Technological University (DTU)', latitude: 28.7501, longitude: 77.1177 },
+  { names: ['rohini', 'rohini delhi', 'rohini sector 7'], label: 'Rohini, Delhi', latitude: 28.7380, longitude: 77.0820 },
+  { names: ['connaught place', 'cp', 'rajiv chowk'], label: 'Connaught Place, New Delhi', latitude: 28.6315, longitude: 77.2167 },
+  { names: ['noida sector 62', 'sector 62 noida'], label: 'Sector 62, Noida', latitude: 28.6270, longitude: 77.3720 },
+  { names: ['india gate'], label: 'India Gate, New Delhi', latitude: 28.6129, longitude: 77.2295 },
+  { names: ['saket', 'saket delhi'], label: 'Saket, New Delhi', latitude: 28.5245, longitude: 77.2066 },
+  { names: ['cyber city', 'gurugram cyber city', 'cyber hub'], label: 'Cyber City, Gurugram', latitude: 28.4949, longitude: 77.0895 },
 ]
 
 const MODE_MAP = {
@@ -108,37 +95,6 @@ function makeDemoResponse(preference) {
   }
 }
 
-const DEMO_STATION_DATA = {
-  'Delhi - DTU': { current: 428.0, predicted: 388.4 },
-  'Delhi - Anand Vihar': { current: 452.0, predicted: 418.2 },
-  'Delhi - Punjabi Bagh': { current: 395.0, predicted: 355.8 },
-  'Delhi - RK Puram': { current: 362.5, predicted: 340.1 },
-  'Delhi - R K Puram': { current: 362.5, predicted: 340.1 },
-  'Delhi - Shadipur': { current: 410.0, predicted: 378.6 },
-  'Delhi - Mandir Marg': { current: 310.0, predicted: 288.0 },
-  'Delhi - IGI Airport (T3)': { current: 285.0, predicted: 260.4 },
-  'Delhi - IGI Airport(T3)': { current: 285.0, predicted: 260.4 },
-  'Delhi - Jahangirpuri': { current: 440.0, predicted: 398.5 },
-  'Delhi - Rohini': { current: 415.0, predicted: 382.0 },
-  'Delhi - Alipur': { current: 370.0, predicted: 345.0 },
-}
-
-function makeDemoForecastResponse(location = 'Delhi - DTU') {
-  const data = DEMO_STATION_DATA[location] || { current: 385.0, predicted: 350.0 }
-  return {
-    location,
-    current_pm25: data.current,
-    predicted_pm25: data.predicted,
-    observation_time: '2022-12-31T21:00:00',
-    prediction_time: '2023-01-01T00:00:00',
-    horizon_minutes: 180,
-    model: 'random_forest',
-    data_source: 'historical_dataset',
-    dataset_latest_observation: '2022-12-31T21:00:00',
-    is_live_forecast: false,
-  }
-}
-
 function normalizeAddress(text) {
   return text.trim().toLowerCase().replace(/[^a-z0-9, .-]/g, '').replace(/\s+/g, ' ')
 }
@@ -200,20 +156,9 @@ function decodePolyline(encoded) {
   return points
 }
 
-function formatIsoTime(isoString) {
-  if (!isoString) return '—'
-  try {
-    const d = new Date(isoString)
-    return d.toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return isoString
-  }
+function formatExposure(value) {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return 'Unavailable'
+  return `${Number(value).toFixed(1)} AQI·h`
 }
 
 function displayRouteName(route, index) {
@@ -252,11 +197,8 @@ function buildRouteMap(routes) {
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState('routes') // 'routes' | 'forecast'
   const [mode, setMode] = useState('demo')
   const [backendStatus, setBackendStatus] = useState('checking')
-
-  // Routing State
   const [form, setForm] = useState({
     start: 'DTU',
     destination: 'Rohini',
@@ -267,112 +209,16 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Forecast State
-  const [stations, setStations] = useState(DEFAULT_STATIONS)
-  const [selectedStation, setSelectedStation] = useState('Delhi - DTU')
-  const [forecastResult, setForecastResult] = useState(null)
-  const [forecastLoading, setForecastLoading] = useState(false)
-  const [forecastError, setForecastError] = useState('')
-
-  const verifyBackend = useCallback(async () => {
-    try {
-      const response = await apiFetch('/health')
-      if (response.ok) {
-        setBackendStatus('online')
-        return true
-      }
-      setBackendStatus('offline')
-      return false
-    } catch {
-      setBackendStatus('offline')
-      return false
-    }
-  }, [])
-
   useEffect(() => {
     let active = true
-
-    const checkAndLoad = async () => {
-      try {
-        const response = await apiFetch('/health')
-        if (response.ok) {
-          if (active) setBackendStatus('online')
-          // Load stations when backend is online
-          try {
-            const stRes = await apiFetch('/forecast/stations')
-            if (stRes.ok) {
-              const data = await stRes.json()
-              if (active && data?.stations?.length) {
-                setStations(data.stations)
-              }
-            }
-          } catch {
-            // fallback stations remain
-          }
-        } else {
-          if (active) setBackendStatus('offline')
-        }
-      } catch {
-        if (active) setBackendStatus('offline')
-      }
-    }
-
-    checkAndLoad()
-    // Poll every 3 seconds so status automatically updates as soon as the backend process starts
-    const interval = setInterval(checkAndLoad, 3000)
-
-    // Initialize default station forecast so it's ready immediately
-    setForecastResult(makeDemoForecastResponse('Delhi - DTU'))
-
-    return () => {
-      active = false
-      clearInterval(interval)
-    }
+    apiFetch('/health')
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('offline')))
+      .then(() => { if (active) setBackendStatus('online') })
+      .catch(() => { if (active) setBackendStatus('offline') })
+    return () => { active = false }
   }, [])
 
   const update = (key, value) => setForm((previous) => ({ ...previous, [key]: value }))
-
-  async function handleGetForecast(targetStation = selectedStation, overrideMode = null) {
-    const station = targetStation || selectedStation
-    const effectiveMode = overrideMode || mode
-    setForecastError('')
-    setForecastLoading(true)
-    try {
-      if (effectiveMode === 'demo') {
-        await new Promise((resolve) => setTimeout(resolve, 200))
-        setForecastResult(makeDemoForecastResponse(station))
-      } else {
-        try {
-          const response = await apiFetch(`/forecast/pm25?location=${encodeURIComponent(station)}`)
-          const data = await response.json().catch(() => ({}))
-          if (!response.ok) {
-            const err = new Error(data.detail || `Forecast request failed with HTTP ${response.status}`)
-            err.isHttpError = true
-            throw err
-          }
-          setForecastResult(data)
-          setBackendStatus('online')
-        } catch (fetchErr) {
-          // If backend is offline or network fails, gracefully display demo data with a clear notification
-          setForecastResult(makeDemoForecastResponse(station))
-          if (fetchErr.isHttpError) {
-            setForecastError(fetchErr.message)
-            // Backend is still online since it returned an HTTP response
-            setBackendStatus('online')
-          } else {
-            const unreachableTarget = API_BASE ? `at ${API_BASE}` : 'locally on port 8000'
-            setForecastError(`Backend service is unreachable ${unreachableTarget}. Ensure the service is active and permits cross-origin requests, or switch to Demo mode. Showing local prototype data.`)
-            setBackendStatus('offline')
-          }
-        }
-      }
-    } catch (err) {
-      setForecastResult(makeDemoForecastResponse(station))
-      setForecastError(err.message || 'Backend service is offline. Showing local prototype data.')
-    } finally {
-      setForecastLoading(false)
-    }
-  }
 
   async function analyzeTrip(event) {
     event.preventDefault()
@@ -419,11 +265,7 @@ function App() {
         })
         const data = await response.json().catch(() => ({}))
         if (!response.ok) {
-          if (response.status === 503) {
-            throw new Error(
-              'Backend is connected! Upstream routing service credentials are not configured in the backend environment. Switch to "Demo" mode (top-right) to view sample route optimization, or configure routing API keys.'
-            )
-          }
+          if (response.status === 503) throw new Error(data.detail || 'Route provider credentials are not configured on the backend. Add GOOGLE_MAPS_API_KEY to backend/.env.')
           if (response.status === 404) throw new Error(data.detail || 'No route was found between those locations.')
           if (response.status === 422) throw new Error(`The backend rejected the request: ${JSON.stringify(data.detail || data)}`)
           throw new Error(data.detail || `Backend request failed (HTTP ${response.status}).`)
@@ -459,327 +301,41 @@ function App() {
   const recommendedRoute = liveData?.recommended_route
   const mapShape = useMemo(() => buildRouteMap(allRoutes), [allRoutes])
 
-  const exposureComparison = useMemo(() => {
-    if (!recommendedRoute || allRoutes.length < 2) {
-      return {
-        headline: '—',
-        label: allRoutes.length === 1 ? 'Only one route candidate available from provider' : 'No routes available',
-      }
-    }
-
-    const chosenExposure = recommendedRoute.estimated_exposure_score
-    const hasValidExposure = Number.isFinite(chosenExposure) && chosenExposure > 0
-
-    if (!hasValidExposure || recommendedRoute.exposure_status === 'UNAVAILABLE') {
-      return {
-        headline: '—',
-        label: 'Air quality measurements unavailable for exposure comparison',
-      }
-    }
-
+  let reduction = null
+  if (recommendedRoute && allRoutes.length > 1) {
     const fastest = [...allRoutes].sort((a, b) => a.duration_seconds - b.duration_seconds)[0]
+    const chosenExposure = recommendedRoute.estimated_exposure_score
     const fastestExposure = fastest.estimated_exposure_score
-    const alternatives = allRoutes.filter((r) => r.route_id !== recommendedRoute.route_id)
-    const validAlts = alternatives.filter((r) => Number.isFinite(r.estimated_exposure_score))
-
-    // Case 1: Recommended route is slower than the fastest route, but has lower exposure
-    if (
-      fastest.route_id !== recommendedRoute.route_id &&
-      Number.isFinite(fastestExposure) &&
-      fastestExposure > 0 &&
-      chosenExposure < fastestExposure
-    ) {
-      const pct = Math.round(((fastestExposure - chosenExposure) / fastestExposure) * 100)
-      return {
-        headline: `${pct}%`,
-        label: 'lower estimated exposure index than the fastest route',
-      }
+    if (fastest.route_id !== recommendedRoute.route_id && Number.isFinite(chosenExposure) && Number.isFinite(fastestExposure) && fastestExposure > 0 && chosenExposure < fastestExposure) {
+      reduction = Math.round(((fastestExposure - chosenExposure) / fastestExposure) * 100)
     }
-
-    // Case 2: Recommended route IS the fastest route
-    if (fastest.route_id === recommendedRoute.route_id && validAlts.length > 0) {
-      const altExposures = validAlts.map((r) => r.estimated_exposure_score)
-      const maxAltExposure = Math.max(...altExposures)
-
-      if (maxAltExposure > chosenExposure) {
-        const pct = Math.round(((maxAltExposure - chosenExposure) / maxAltExposure) * 100)
-        return {
-          headline: `${pct}%`,
-          label: 'lower estimated exposure than the alternative path (also the fastest route)',
-        }
-      }
-
-      return {
-        headline: '✓ Optimal',
-        label: 'Fastest route with minimal exposure across candidates',
-      }
-    }
-
-    // Case 3: Recommended route prioritized speed over a cleaner alternative
-    if (validAlts.length > 0) {
-      const minAltExposure = Math.min(...validAlts.map((r) => r.estimated_exposure_score))
-      if (minAltExposure < chosenExposure) {
-        return {
-          headline: '⚡ Fastest',
-          label: 'Fastest route chosen by priority (alternative had lower pollution index)',
-        }
-      }
-    }
-
-    return {
-      headline: '—',
-      label: 'Exposure levels are closely matched across candidate routes',
-    }
-  }, [recommendedRoute, allRoutes])
+  }
 
   const mapsUrl = tripResult
     ? `https://www.google.com/maps/dir/?api=1&origin=${tripResult.origin.latitude},${tripResult.origin.longitude}&destination=${tripResult.destinationCoords.latitude},${tripResult.destinationCoords.longitude}&travelmode=${({ Walking: 'walking', Driving: 'driving', Cycling: 'bicycling', 'Two-wheeler': 'driving' })[tripResult.travelMode] || 'walking'}`
     : '#'
 
-  // Forecast calculations
-  const pmDelta = forecastResult ? forecastResult.predicted_pm25 - forecastResult.current_pm25 : 0
-  const pmPercent = forecastResult && forecastResult.current_pm25 > 0 ? ((pmDelta / forecastResult.current_pm25) * 100).toFixed(1) : '0'
-
   return (
     <div className="app-shell">
       <header className="topbar">
-        <button className="brand brand-button" onClick={() => { setActiveTab('routes'); resetTrip() }} aria-label="AIRGUARD home">
+        <button className="brand brand-button" onClick={resetTrip} aria-label="AIRGUARD home">
           <div className="brand-mark">A</div>
           <div>
             <div className="brand-name">AIRGUARD</div>
             <div className="brand-sub">Personal pollution intelligence</div>
           </div>
         </button>
-
-        <div className="nav-tabs" role="tablist" aria-label="Main Navigation">
-          <button
-            role="tab"
-            aria-selected={activeTab === 'routes'}
-            className={`tab-btn ${activeTab === 'routes' ? 'active' : ''}`}
-            onClick={() => setActiveTab('routes')}
-          >
-            Route Optimizer
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'forecast'}
-            className={`tab-btn ${activeTab === 'forecast' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveTab('forecast')
-              if (!forecastResult) handleGetForecast(selectedStation)
-            }}
-          >
-            3h PM2.5 Forecast
-          </button>
-        </div>
-
         <div className="topbar-actions">
           <div className="mode-switch" role="group" aria-label="Data mode">
-            <button
-              className={mode === 'demo' ? 'selected' : ''}
-              onClick={() => {
-                setMode('demo')
-                setForecastError('')
-                setForecastResult(makeDemoForecastResponse(selectedStation))
-                resetTrip()
-              }}
-            >
-              Demo
-            </button>
-            <button
-              className={mode === 'live' ? 'selected live-selected' : ''}
-              onClick={async () => {
-                setMode('live')
-                resetTrip()
-                setForecastError('')
-                const isOnline = await verifyBackend()
-                if (isOnline && activeTab === 'forecast') {
-                  handleGetForecast(selectedStation, 'live')
-                }
-              }}
-            >
-              Live API
-            </button>
+            <button className={mode === 'demo' ? 'selected' : ''} onClick={() => { setMode('demo'); resetTrip() }}>Demo</button>
+            <button className={mode === 'live' ? 'selected live-selected' : ''} onClick={() => { setMode('live'); resetTrip() }}>Live API</button>
           </div>
-          <div
-            className="status-pill"
-            onClick={() => verifyBackend()}
-            style={{ cursor: 'pointer' }}
-            title="Click to refresh backend connectivity status"
-          >
-            <span className={`status-dot ${mode === 'demo' ? 'online' : backendStatus}`} />
-            {mode === 'demo' ? 'Demo Mode (Offline Ready)' : `Backend ${backendStatus}`}
-          </div>
+          <div className="status-pill"><span className={`status-dot ${backendStatus}`} />{mode === 'demo' ? 'Synthetic demo data' : `Backend ${backendStatus}`}</div>
         </div>
       </header>
 
       <main>
-        {activeTab === 'forecast' ? (
-          <section className="forecast-layout">
-            <div className="forecast-header">
-              <div className="eyebrow">AIR QUALITY PREDICTIVE INTELLIGENCE</div>
-              <h1>3-Hour Ahead <span>PM2.5 Forecast</span></h1>
-              <p>
-                Machine-learning prediction powered by a Random Forest model trained on historical Delhi monitoring observations. Forecasts PM2.5 concentrations 3 hours forward based on recent temporal lags and weather features.
-              </p>
-            </div>
-
-            <div className="forecast-grid">
-              <div className="forecast-card-main">
-                <div className="card-heading">
-                  <div>
-                    <div className="card-kicker">MONITORING STATION</div>
-                    <h2>Select Delhi Station</h2>
-                  </div>
-                  <div className="spark">⚡</div>
-                </div>
-
-                <label>
-                  Station Name
-                  <select
-                    className="station-select"
-                    value={selectedStation}
-                    onChange={(e) => {
-                      setSelectedStation(e.target.value)
-                      handleGetForecast(e.target.value)
-                    }}
-                  >
-                    {stations.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <div style={{ marginTop: '14px' }}>
-                  <span className="map-label">POPULAR DELHI STATIONS:</span>
-                  <div className="quick-station-chips">
-                    {DEFAULT_STATIONS.slice(0, 5).map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        className={`station-chip ${selectedStation === s ? 'selected' : ''}`}
-                        onClick={() => {
-                          setSelectedStation(s)
-                          handleGetForecast(s)
-                        }}
-                      >
-                        {s.replace('Delhi - ', '')}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  style={{ marginTop: '24px' }}
-                  className="primary-btn"
-                  onClick={() => handleGetForecast(selectedStation)}
-                  disabled={forecastLoading}
-                >
-                  {forecastLoading ? 'Calculating Forecast…' : 'Update 3h Forecast →'}
-                </button>
-
-                {forecastError && (
-                  <div className="error-card" role="alert" style={{ marginTop: '18px' }}>
-                    <strong>Forecast Error</strong>
-                    <span>{forecastError}</span>
-                  </div>
-                )}
-
-                <div className="prototype-warning-badge">
-                  <strong>CRITICAL LIMITATION & PROTOTYPE NOTICE</strong>
-                  This forecasting prototype evaluates historical observations (baseline: December 31, 2022). It serves as a proof-of-concept ML pipeline and does not depict current live atmospheric telemetry.
-                </div>
-              </div>
-
-              <div className="forecast-card-results">
-                <div className="card-heading">
-                  <div>
-                    <div className="card-kicker">PREDICTION RESULTS</div>
-                    <h2>{forecastResult?.location || selectedStation}</h2>
-                  </div>
-                  <span className="status-pill">
-                    {mode === 'demo' ? 'DEMO SIMULATION' : 'ML PIPELINE'}
-                  </span>
-                </div>
-
-                {forecastResult ? (
-                  <>
-                    <div className="forecast-metrics">
-                      <div className="forecast-metric-box">
-                        <span className="metric-label">BASELINE PM2.5</span>
-                        <div className="metric-val">
-                          {forecastResult.current_pm25}
-                          <span className="metric-unit">µg/m³</span>
-                        </div>
-                        <small style={{ color: '#7a8c84', fontSize: '10px' }}>Historical observation</small>
-                      </div>
-
-                      <div className="forecast-metric-box" style={{ borderColor: 'rgba(131,228,173,.3)' }}>
-                        <span className="metric-label">3H FORECAST PM2.5</span>
-                        <div className="metric-val" style={{ color: '#86e5af' }}>
-                          {forecastResult.predicted_pm25}
-                          <span className="metric-unit">µg/m³</span>
-                        </div>
-                        <small style={{ color: '#7a8c84', fontSize: '10px' }}>Random Forest model</small>
-                      </div>
-
-                      <div className="forecast-metric-box">
-                        <span className="metric-label">3H DELTA</span>
-                        <div className={`metric-val ${pmDelta > 0 ? 'trend-worse' : pmDelta < 0 ? 'trend-better' : 'trend-steady'}`}>
-                          {pmDelta > 0 ? `+${pmDelta.toFixed(1)}` : pmDelta.toFixed(1)}
-                          <span className="metric-unit">µg/m³</span>
-                        </div>
-                        <small style={{ color: '#7a8c84', fontSize: '10px' }}>{pmPercent}% shift</small>
-                      </div>
-                    </div>
-
-                    <div className="forecast-meta-row">
-                      <span>Baseline Observation Timestamp:</span>
-                      <strong>{formatIsoTime(forecastResult.observation_time)}</strong>
-                    </div>
-                    <div className="forecast-meta-row">
-                      <span>Forecast Target Timestamp (+3h):</span>
-                      <strong>{formatIsoTime(forecastResult.prediction_time)}</strong>
-                    </div>
-                    <div className="forecast-meta-row">
-                      <span>Prediction Horizon:</span>
-                      <strong>180 minutes (3 hours)</strong>
-                    </div>
-                    <div className="forecast-meta-row">
-                      <span>Predictor Architecture:</span>
-                      <strong>RandomForestRegressor (13 input features)</strong>
-                    </div>
-                    <div className="forecast-meta-row">
-                      <span>Telemetry Status:</span>
-                      <strong style={{ color: '#ffd27a' }}>Historical Dataset Prototype (Non-Live)</strong>
-                    </div>
-
-                    <div className="advisory-box">
-                      <h4>DEPARTURE & TRAVEL EXPOSURE ADVISORY</h4>
-                      {pmDelta < -5 ? (
-                        <p>
-                          📉 <strong>Improving Air Quality Anticipated:</strong> Predicted PM2.5 decreases by {Math.abs(pmDelta).toFixed(1)} µg/m³ over the next 3 hours. If your trip is flexible, postponing outdoor commuting could substantially decrease cumulative lung exposure.
-                        </p>
-                      ) : pmDelta > 5 ? (
-                        <p>
-                          📈 <strong>Deteriorating Conditions Projected:</strong> PM2.5 is forecast to rise by {pmDelta.toFixed(1)} µg/m³ over the 3-hour window. Departing immediately or choosing enclosed transportation with filtration is recommended.
-                        </p>
-                      ) : (
-                        <p>
-                          ➡️ <strong>Stable Ambient Conditions:</strong> Particulate levels are projected to remain steady over the 3-hour forecast horizon. Route selection remains the primary factor for minimizing exposure.
-                        </p>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <div style={{ padding: '40px 0', textAlign: 'center', color: '#7a8c84' }}>
-                    Select a station to calculate the 3-hour PM2.5 forecast.
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-        ) : !tripResult ? (
+        {!tripResult ? (
           <section className="hero-layout">
             <div className="hero-copy">
               <div className="eyebrow">SMARTER TRAVEL. CLEANER AIR.</div>
@@ -795,8 +351,8 @@ function App() {
               {mode === 'live' && (
                 <div className="mode-info">
                   <strong>Live API mode</strong>
-                  <span>Uses the FastAPI backend. Known demo locations (DTU, Rohini, Connaught Place, Noida Sector 62, India Gate, Saket and Cyber City) resolve instantly; other addresses use OpenStreetMap Nominatim.</span>
-                  <code>{API_BASE || 'http://localhost:8000'}</code>
+                  <span>Uses the FastAPI backend. Known presets work instantly; custom addresses are geocoded via OpenStreetMap Nominatim.</span>
+                  <code>{API_BASE || '(Vite dev proxy: /)'}</code>
                 </div>
               )}
             </div>
@@ -827,25 +383,9 @@ function App() {
                 </div>
                 <button className="primary-btn" disabled={loading}>{loading ? 'Analyzing routes…' : mode === 'demo' ? 'Try demo analysis →' : 'Analyze live routes →'}</button>
               </form>
-              {error && (
-                <div className="error-card" role="alert">
-                  <strong>Could not analyze this trip</strong>
-                  <span>{error}</span>
-                  {mode === 'live' && backendStatus === 'offline' && (
-                    <small>
-                      {API_BASE
-                        ? `Cannot reach backend at ${API_BASE}. Check ECS task status and CORS configuration.`
-                        : 'Make sure the backend is running. Instructions are in the project README.'}
-                    </small>
-                  )}
-                </div>
-              )}
-              <div className="privacy-note">
-  {mode === 'demo'
-    ? 'DEMO MODE: Illustrative sample routes, travel times, and pollution values. They are not calculated for your selected journey and are not live measurements.'
-    : 'Coordinates are sent to your backend to calculate routes'}
-</div>
-              {mode === 'live' && <div className="location-hint">Tip: try DTU → Rohini first. Custom addresses are resolved automatically via OpenStreetMap Nominatim.</div>}
+              {error && <div className="error-card" role="alert"><strong>Could not analyze this trip</strong><span>{error}</span>{mode === 'live' && backendStatus === 'offline' && <small>Ensure the backend is reachable. For local dev, verify port 8000; for production, check VITE_API_BASE_URL and CORS settings.</small>}</div>}
+              <div className="privacy-note">{mode === 'demo' ? 'Synthetic data · No backend or API key needed' : 'Coordinates are sent to your backend to calculate routes'}</div>
+              {mode === 'live' && <div className="location-hint">Tip: try DTU → Rohini first. Custom addresses are resolved via OpenStreetMap Nominatim or explicit lat,lng coordinates.</div>}
             </div>
           </section>
         ) : (
@@ -865,17 +405,6 @@ function App() {
             </div>
 
             {tripResult.source === 'synthetic' && <div className="demo-notice"><strong>DEMO DATA</strong><span>These values are synthetic examples, not live measurements. Switch to Live API mode to use the backend.</span></div>}
-
-{allRoutes.length === 1 && (
-  <div className="limitations-box">
-    <strong>Only one route available</strong>
-    <p>
-      The routing provider returned only one candidate route.
-      AIRGUARD cannot compare alternatives or confirm that this
-      route has lower pollution exposure than other routes.
-    </p>
-  </div>
-)}
 
             <div className="metrics-row">
               <div className="metric"><span>AVERAGE AQI</span><strong>{recommendedRoute?.average_aqi != null ? Number(recommendedRoute.average_aqi).toFixed(1) : '—'}</strong><small>{recommendedRoute?.air_quality_category || 'No reading'}</small></div>
@@ -911,50 +440,10 @@ function App() {
                 <div className="map-label">BACKEND RECOMMENDATION</div>
                 <h3>{displayRouteName(recommendedRoute || {}, 0)}</h3>
                 <p>{liveData.summary || 'The backend selected this route according to your chosen preference.'}</p>
-                
-<div className="reduction">
-  <strong>{exposureComparison.headline}</strong>
-  <span>{exposureComparison.label}</span>
-</div>
-
+                <div className="reduction"><strong>{reduction === null ? '—' : `${reduction}%`}</strong><span>{reduction === null ? 'No comparable exposure reduction available' : 'lower exposure index than fastest route'}</span></div>
                 <div className="reason-line"><span>Travel time</span><strong>{recommendedRoute?.duration_formatted || 'Unavailable'}</strong></div>
                 <div className="reason-line"><span>Distance</span><strong>{recommendedRoute?.distance_formatted || 'Unavailable'}</strong></div>
-               
-<div className="reason-line">
-  <span>Air quality data</span>
-  <strong>{recommendedRoute?.exposure_status || 'Unavailable'}</strong>
-</div>
-<div className="reason-line">
-  <span>Data source</span>
-  <strong>
-    {tripResult.source === 'synthetic'
-      ? 'Demo sample'
-      : recommendedRoute?.average_aqi != null
-        ? 'Open-Meteo model estimate'
-        : 'Unavailable'}
-  </strong>
-</div>
-
-
-                <div className="route-forecast-callout">
-                  <div className="route-forecast-callout-header">
-                    <span className="map-label">DEPARTURE TIMING & FORECAST</span>
-                    <button
-                      type="button"
-                      className="station-chip selected"
-                      style={{ fontSize: '10px', padding: '3px 8px' }}
-                      onClick={() => {
-                        setActiveTab('forecast')
-                        handleGetForecast('Delhi - DTU')
-                      }}
-                    >
-                      View 3h PM2.5 Forecast ↗
-                    </button>
-                  </div>
-                  <small style={{ color: '#9db2a8', display: 'block', lineHeight: 1.5 }}>
-                    Station-level 3-hour forecasts can help optimize your departure time. Check the ML forecast tab to see if ambient PM2.5 is projected to decrease.
-                  </small>
-                </div>
+                <div className="reason-line"><span>Air quality data</span><strong>{recommendedRoute?.exposure_status || 'Unavailable'}</strong></div>
               </div>
             </div>
 
@@ -986,8 +475,8 @@ function App() {
       <footer>
         <span>AIRGUARD</span>
         <span>Environmental Hacks · Bharat Builds Tour 2026</span>
-        <span>Geocoding © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>OpenStreetMap contributors</a></span>
         <span>Air-quality estimates are informational, not medical advice.</span>
+        <span>Geocoding powered by OpenStreetMap contributors.</span>
       </footer>
     </div>
   )
