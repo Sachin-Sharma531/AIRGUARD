@@ -29,9 +29,9 @@ AIRGUARD_Integrated/
 
 ## 2. ML Forecasting Component Details
 
-* **Model File**: `backend/app/ml/artifacts/pm25_model.joblib` (Random Forest Regressor, ~371 MB).
-* **Dataset File**: `backend/app/ml/artifacts/delhi_clean.csv` (Historical continuous ambient observations from Jan 1, 2021 – Dec 31, 2022; 233,600 rows).
-* **Model Inputs (13 features)**:
+- **Model File**: `backend/app/ml/artifacts/pm25_model.joblib` (Random Forest Regressor, ~371 MB).
+- **Dataset File**: `backend/app/ml/artifacts/delhi_clean.csv` (Historical continuous ambient observations from Jan 1, 2021 – Dec 31, 2022; 233,600 rows).
+- **Model Inputs (13 features)**:
   1. `location`: Station identifier
   2. `PM2.5`: Latest continuous measurement ($\mu\text{g/m}^3$)
   3. `pm25_lag_1`: Measurement 3 hours prior ($t-3\text{h}$)
@@ -42,8 +42,8 @@ AIRGUARD_Integrated/
   8. `wind_speed`: Wind velocity (m/s)
   9. `wind_direction`: Wind vector (degrees)
   10. `hour_sin` & 11. `hour_cos`: Cyclical diurnal features
-  12. `day_sin` & 13. `day_cos`: Cyclical weekly features
-* **Prediction Horizon**: 180 minutes (3 hours ahead).
+  11. `day_sin` & 13. `day_cos`: Cyclical weekly features
+- **Prediction Horizon**: 180 minutes (3 hours ahead).
 
 > [!IMPORTANT]
 > **Prototype & Historical Limitation**: The ML forecasting engine operates on historical observations spanning 2021–2022 (latest baseline: December 31, 2022). It serves as an integrated demonstration of the machine-learning pipeline and feature engineering. It is **not** connected to live real-time sensors, and its outputs must be distinguished from current atmospheric conditions.
@@ -53,16 +53,21 @@ AIRGUARD_Integrated/
 ## 3. Quick Start & Setup Guide
 
 ### Step A: Place Required ML Artifacts
+
 Ensure the large model and dataset artifacts are placed in the artifacts folder:
+
 ```powershell
 # Expected locations:
 backend/app/ml/artifacts/pm25_model.joblib
 backend/app/ml/artifacts/delhi_clean.csv
 ```
-*(These files are excluded from Git history via `.gitignore` to prevent repository bloat).*
+
+_(These files are excluded from Git history via `.gitignore` to prevent repository bloat)._
 
 ### Step B: Backend Setup & Launch
+
 Open a PowerShell terminal in `backend/`:
+
 ```powershell
 cd backend
 python -m venv .venv
@@ -77,21 +82,27 @@ Copy-Item .env.example .env
 # Run development server
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
 Verify backend operation:
-* Root greeting: [http://localhost:8000/](http://localhost:8000/)
-* Health check: [http://localhost:8000/health](http://localhost:8000/health)
-* OpenAPI Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+- Root greeting: [http://localhost:8000/](http://localhost:8000/)
+- Health check: [http://localhost:8000/health](http://localhost:8000/health)
+- OpenAPI Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ### Step C: Frontend Setup & Launch
+
 Open a second terminal in `frontend/`:
+
 ```powershell
 cd frontend
 npm install
 npm run dev
 ```
+
 Open [http://localhost:5173](http://localhost:5173).
 
 Features available in the UI:
+
 1. **Route Optimizer Tab**: Compare routes by travel duration vs exposure index ($\text{AQI} \times \text{hours}$).
 2. **3h PM2.5 Forecast Tab**: Select from historical Delhi stations (e.g. `Delhi - DTU`, `Delhi - Anand Vihar`), view baseline vs 3-hour ahead predicted PM2.5, see trend metrics, and receive departure time advisories.
 3. **Demo / Live API Switcher**: Test offline without external API keys in Demo mode, or switch to Live API mode to query the local FastAPI backend.
@@ -101,7 +112,9 @@ Features available in the UI:
 ## 4. Primary API Endpoints
 
 ### 1. `GET /forecast/pm25?location=Delhi%20-%20DTU`
+
 Returns the latest historical PM2.5 observation, the 3-hour future prediction, feature timestamps, and prototype metadata:
+
 ```json
 {
   "location": "Delhi - DTU",
@@ -118,15 +131,18 @@ Returns the latest historical PM2.5 observation, the 3-hour future prediction, f
 ```
 
 ### 2. `GET /forecast/stations`
+
 Lists all available air quality monitoring stations in the historical dataset.
 
 ### 3. `POST /routes/pollution-aware`
+
 Multi-objective route planner balancing travel duration and cumulative air quality exposure.
 Payload:
+
 ```json
 {
   "origin": { "latitude": 28.7501, "longitude": 77.1177 },
-  "destination": { "latitude": 28.7380, "longitude": 77.0820 },
+  "destination": { "latitude": 28.738, "longitude": 77.082 },
   "preference": "balanced",
   "travel_mode": "DRIVE",
   "compute_alternatives": true
@@ -134,6 +150,7 @@ Payload:
 ```
 
 ### 4. `POST /geocode`
+
 Resolves address strings into geographic coordinates. Common demo locations (DTU, Rohini, CP, Noida Sec 62) are pre-mapped for offline evaluation.
 
 ---
@@ -141,27 +158,30 @@ Resolves address strings into geographic coordinates. Common demo locations (DTU
 ## 5. Automated Testing & Verification
 
 Run the full automated test suite (70 tests):
+
 ```powershell
 cd backend
 python -m pytest tests -v
 ```
 
 Run the standalone in-process smoke test runner:
+
 ```powershell
 cd backend
 python local_testing/manual_smoke_test.py
 ```
 
 All 70 tests pass cleanly, covering:
-* Route scoring, tie-breaking, and boundary limits.
-* ML model artifact loading and forecast calculations.
-* 422 error handling on invalid station inputs.
-* Fallback behavior when air quality data is unavailable (avoids false clean route claims).
-* Polyline decoding and waypoint sampling math.
+
+- Route scoring, tie-breaking, and boundary limits.
+- ML model artifact loading and forecast calculations.
+- 422 error handling on invalid station inputs.
+- Fallback behavior when air quality data is unavailable (avoids false clean route claims).
+- Polyline decoding and waypoint sampling math.
 
 ---
 
 ## 6. Exposure Metric Clarification
 
-* **Estimated Exposure Score**: Calculated as $\text{Average AQI} \times \frac{\text{duration\_seconds}}{3600}$ ($\text{AQI}\cdot\text{h}$).
-* This represents an environmental exposure index for comparative route ranking, **not a clinically validated lung dose or medical diagnosis**.
+- **Estimated Exposure Score**: Calculated as $\text{Average AQI} \times \frac{\text{duration\_seconds}}{3600}$ ($\text{AQI}\cdot\text{h}$).
+- This represents an environmental exposure index for comparative route ranking, **not a clinically validated lung dose or medical diagnosis**.

@@ -476,15 +476,78 @@ function App() {
   const recommendedRoute = liveData?.recommended_route
   const mapShape = useMemo(() => buildRouteMap(allRoutes), [allRoutes])
 
-  let reduction = null
-  if (recommendedRoute && allRoutes.length > 1) {
-    const fastest = [...allRoutes].sort((a, b) => a.duration_seconds - b.duration_seconds)[0]
-    const chosenExposure = recommendedRoute.estimated_exposure_score
-    const fastestExposure = fastest.estimated_exposure_score
-    if (fastest.route_id !== recommendedRoute.route_id && Number.isFinite(chosenExposure) && Number.isFinite(fastestExposure) && fastestExposure > 0 && chosenExposure < fastestExposure) {
-      reduction = Math.round(((fastestExposure - chosenExposure) / fastestExposure) * 100)
+  const exposureComparison = useMemo(() => {
+    if (!recommendedRoute || allRoutes.length < 2) {
+      return {
+        headline: '—',
+        label: allRoutes.length === 1 ? 'Only one route candidate available from provider' : 'No routes available',
+      }
     }
-  }
+
+    const chosenExposure = recommendedRoute.estimated_exposure_score
+    const hasValidExposure = Number.isFinite(chosenExposure) && chosenExposure > 0
+
+    if (!hasValidExposure || recommendedRoute.exposure_status === 'UNAVAILABLE') {
+      return {
+        headline: '—',
+        label: 'Air quality measurements unavailable for exposure comparison',
+      }
+    }
+
+    const fastest = [...allRoutes].sort((a, b) => a.duration_seconds - b.duration_seconds)[0]
+    const fastestExposure = fastest.estimated_exposure_score
+    const alternatives = allRoutes.filter((r) => r.route_id !== recommendedRoute.route_id)
+    const validAlts = alternatives.filter((r) => Number.isFinite(r.estimated_exposure_score))
+
+    // Case 1: Recommended route is slower than the fastest route, but has lower exposure
+    if (
+      fastest.route_id !== recommendedRoute.route_id &&
+      Number.isFinite(fastestExposure) &&
+      fastestExposure > 0 &&
+      chosenExposure < fastestExposure
+    ) {
+      const pct = Math.round(((fastestExposure - chosenExposure) / fastestExposure) * 100)
+      return {
+        headline: `${pct}%`,
+        label: 'lower estimated exposure index than the fastest route',
+      }
+    }
+
+    // Case 2: Recommended route IS the fastest route
+    if (fastest.route_id === recommendedRoute.route_id && validAlts.length > 0) {
+      const altExposures = validAlts.map((r) => r.estimated_exposure_score)
+      const maxAltExposure = Math.max(...altExposures)
+
+      if (maxAltExposure > chosenExposure) {
+        const pct = Math.round(((maxAltExposure - chosenExposure) / maxAltExposure) * 100)
+        return {
+          headline: `${pct}%`,
+          label: 'lower estimated exposure than the alternative path (also the fastest route)',
+        }
+      }
+
+      return {
+        headline: '✓ Optimal',
+        label: 'Fastest route with minimal exposure across candidates',
+      }
+    }
+
+    // Case 3: Recommended route prioritized speed over a cleaner alternative
+    if (validAlts.length > 0) {
+      const minAltExposure = Math.min(...validAlts.map((r) => r.estimated_exposure_score))
+      if (minAltExposure < chosenExposure) {
+        return {
+          headline: '⚡ Fastest',
+          label: 'Fastest route chosen by priority (alternative had lower pollution index)',
+        }
+      }
+    }
+
+    return {
+      headline: '—',
+      label: 'Exposure levels are closely matched across candidate routes',
+    }
+  }, [recommendedRoute, allRoutes])
 
   const mapsUrl = tripResult
     ? `https://www.google.com/maps/dir/?api=1&origin=${tripResult.origin.latitude},${tripResult.origin.longitude}&destination=${tripResult.destinationCoords.latitude},${tripResult.destinationCoords.longitude}&travelmode=${({ Walking: 'walking', Driving: 'driving', Cycling: 'bicycling', 'Two-wheeler': 'driving' })[tripResult.travelMode] || 'walking'}`
@@ -855,14 +918,8 @@ function App() {
                 <p>{liveData.summary || 'The backend selected this route according to your chosen preference.'}</p>
                 
 <div className="reduction">
-  <strong>{reduction === null ? '—' : `${reduction}%`}</strong>
-  <span>
-    {reduction === null
-      ? allRoutes.length < 2
-        ? 'Cannot compare: only one route available'
-        : 'No valid exposure reduction comparison available'
-      : 'lower estimated exposure index than the fastest route'}
-  </span>
+  <strong>{exposureComparison.headline}</strong>
+  <span>{exposureComparison.label}</span>
 </div>
 
                 <div className="reason-line"><span>Travel time</span><strong>{recommendedRoute?.duration_formatted || 'Unavailable'}</strong></div>

@@ -48,6 +48,7 @@ backend/
 ## 2. Setup & Installation
 
 ### A. Activate Virtual Environment
+
 From the `backend/` directory:
 
 ```powershell
@@ -56,6 +57,7 @@ From the `backend/` directory:
 ```
 
 ### B. Install Dependencies
+
 ```powershell
 pip install -r requirements.txt
 ```
@@ -70,17 +72,18 @@ Start the local development server with auto-reload:
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-* **Interactive API Documentation (Swagger UI)**: [http://localhost:8000/docs](http://localhost:8000/docs)
-* **Alternative API Documentation (ReDoc)**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
-* **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+- **Interactive API Documentation (Swagger UI)**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Alternative API Documentation (ReDoc)**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+- **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
 
 ---
 
 ## 4. API Endpoints
 
 ### `GET /health`
-* **Purpose**: System liveness check for AWS App Runner / ALB probes.
-* **Response**:
+
+- **Purpose**: System liveness check for AWS App Runner / ALB probes.
+- **Response**:
   ```json
   {
     "status": "healthy",
@@ -90,20 +93,26 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   ```
 
 ### `POST /geocode`
-* **Purpose**: Resolves a human-readable place name/address into latitude/longitude before route planning.
-* **Required Google API**: Geocoding API must be enabled for the configured key. A few common DTU/Delhi demo locations are resolved by the frontend without geocoding.
-* **Request**:
+
+- **Purpose**: Resolves a human-readable place name/address into latitude/longitude before route planning.
+- **Required Google API**: Geocoding API must be enabled for the configured key. A few common DTU/Delhi demo locations are resolved by the frontend without geocoding.
+- **Request**:
   ```json
-  {"address": "Connaught Place, New Delhi"}
+  { "address": "Connaught Place, New Delhi" }
   ```
-* **Response**:
+- **Response**:
   ```json
-  {"formatted_address": "Connaught Place, New Delhi, Delhi, India", "latitude": 28.6315, "longitude": 77.2167}
+  {
+    "formatted_address": "Connaught Place, New Delhi, Delhi, India",
+    "latitude": 28.6315,
+    "longitude": 77.2167
+  }
   ```
 
 ### `POST /analyze`
-* **Purpose**: Analyzes pollutant concentrations and returns computed/predicted AQI, category, and health advisories.
-* **Request Body Example**:
+
+- **Purpose**: Analyzes pollutant concentrations and returns computed/predicted AQI, category, and health advisories.
+- **Request Body Example**:
   ```json
   {
     "pm25": 58.4,
@@ -116,7 +125,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
     "humidity": 62.0
   }
   ```
-* **Response Body Example (200 OK)**:
+- **Response Body Example (200 OK)**:
   ```json
   {
     "aqi": 153,
@@ -133,29 +142,30 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   ```
 
 ### `POST /routes/pollution-aware`
-* **Purpose**: Plans navigation routes between origin and destination coordinates, samples air quality along each candidate path, computes time-weighted exposure, and selects the optimal route based on travel time and air quality trade-offs.
-* **Aliases**: `POST /routes`, `POST /routes/plan`
-* **Preferences**:
-  * `faster`: Heavily weights travel time (85% time / 15% pollution).
-  * `balanced`: Trades off travel time and exposure (50% time / 50% pollution with relative benefit tie-breaking).
-  * `cleaner`: Prioritizes lower pollution exposure (15% time / 85% pollution).
-* **Request Body Example**:
+
+- **Purpose**: Plans navigation routes between origin and destination coordinates, samples air quality along each candidate path, computes time-weighted exposure, and selects the optimal route based on travel time and air quality trade-offs.
+- **Aliases**: `POST /routes`, `POST /routes/plan`
+- **Preferences**:
+  - `faster`: Heavily weights travel time (85% time / 15% pollution).
+  - `balanced`: Trades off travel time and exposure (50% time / 50% pollution with relative benefit tie-breaking).
+  - `cleaner`: Prioritizes lower pollution exposure (15% time / 85% pollution).
+- **Request Body Example**:
   ```json
   {
     "origin": {
       "latitude": 28.6139,
-      "longitude": 77.2090
+      "longitude": 77.209
     },
     "destination": {
       "latitude": 28.5355,
-      "longitude": 77.3910
+      "longitude": 77.391
     },
     "preference": "balanced",
     "travel_mode": "DRIVE",
     "compute_alternatives": true
   }
   ```
-* **Response Body Example (200 OK)**:
+- **Response Body Example (200 OK)**:
   ```json
   {
     "recommended_route": {
@@ -190,7 +200,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
         "exposure_status": "ESTIMATED",
         "polyline": "encoded_polyline_string_here",
         "waypoints_sampled": 8,
-        "score": 0.50,
+        "score": 0.5,
         "normalized_time": 0.0,
         "normalized_exposure": 1.0,
         "is_recommended": false
@@ -205,8 +215,9 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ---
 
 ### `GET /forecast/stations`
-* **Purpose**: Returns the list of all available air quality monitoring stations in the historical dataset.
-* **Response Body Example (200 OK)**:
+
+- **Purpose**: Returns the list of all available air quality monitoring stations in the historical dataset.
+- **Response Body Example (200 OK)**:
   ```json
   {
     "stations": [
@@ -225,10 +236,11 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   ```
 
 ### `GET /forecast/pm25`
-* **Purpose**: Predicts PM2.5 concentration three hours ahead for a historical monitoring station using the trained Random Forest model.
-* **Query Parameters**:
-  * `location` (string, required): Exact station name (e.g. `Delhi - DTU`).
-* **Response Body Example (200 OK)**:
+
+- **Purpose**: Predicts PM2.5 concentration three hours ahead for a historical monitoring station using the trained Random Forest model.
+- **Query Parameters**:
+  - `location` (string, required): Exact station name (e.g. `Delhi - DTU`).
+- **Response Body Example (200 OK)**:
   ```json
   {
     "location": "Delhi - DTU",
@@ -243,7 +255,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
     "is_live_forecast": false
   }
   ```
-* **Important Note**: Predictions are derived from historical observations (ending Dec 31, 2022) to demonstrate the ML pipeline; they do not represent real-time sensor measurements.
+- **Important Note**: Predictions are derived from historical observations (ending Dec 31, 2022) to demonstrate the ML pipeline; they do not represent real-time sensor measurements.
 
 ---
 
@@ -264,5 +276,3 @@ Run the standalone CLI smoke test:
 ```powershell
 python local_testing/manual_smoke_test.py
 ```
-
-
