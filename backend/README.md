@@ -216,7 +216,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
       "Delhi - IGI Airport (T3)",
       "Delhi - Mandir Marg",
       "Delhi - Punjabi Bagh",
-      "Delhi - RK Puram",
+      "Delhi - R K Puram",
       "Delhi - Rohini",
       "Delhi - Shadipur"
     ],

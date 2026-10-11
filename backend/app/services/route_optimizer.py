@@ -12,7 +12,10 @@ from app.schemas.routing import (
 )
 from app.services.google_air_quality import BaseAirQualityProvider, GoogleAirQualityClient
 from app.services.google_routes import BaseRoutesProvider, GoogleRoutesClient, RawRouteCandidate
+from app.services.osrm_routes import OSRMRoutesClient
 from app.services.polyline import decode_polyline, sample_polyline_coordinates
+from app.services.open_meteo_air_quality import OpenMeteoAirQualityClient
+from app.services.valhalla_routes import ValhallaRoutesClient
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +74,11 @@ class RouteOptimizerService:
     ):
         self.settings = settings or get_settings()
         self.routes_provider = routes_provider or GoogleRoutesClient(settings=self.settings)
-        self.air_quality_provider = air_quality_provider or GoogleAirQualityClient(settings=self.settings)
-
+        self.air_quality_provider = (
+            air_quality_provider
+            if air_quality_provider is not None
+            else OpenMeteoAirQualityClient(settings=self.settings)
+        )
     def _get_preference_weights(self, preference: RoutePreference) -> Tuple[float, float]:
         """Returns (time_weight, pollution_weight) based on user preference."""
         if preference == RoutePreference.FASTER:
@@ -85,7 +91,7 @@ class RouteOptimizerService:
                 self.settings.ROUTING_WEIGHT_CLEANER_TIME,
                 self.settings.ROUTING_WEIGHT_CLEANER_POLLUTION,
             )
-        else:  # BALANCED
+        else:
             return (
                 self.settings.ROUTING_WEIGHT_BALANCED_TIME,
                 self.settings.ROUTING_WEIGHT_BALANCED_POLLUTION,
@@ -103,7 +109,8 @@ class RouteOptimizerService:
         """
         # 1. Decode polyline geometry
         if candidate.polyline_encoded:
-            coords = decode_polyline(candidate.polyline_encoded)
+            precision = 6 if candidate.route_id.startswith("valhalla-") else 5
+            coords = decode_polyline(candidate.polyline_encoded, precision=precision)
         else:
             coords = [origin_coords, dest_coords]
 
@@ -148,7 +155,25 @@ class RouteOptimizerService:
         Plans candidate routes and selects the optimal route based on air pollution and travel duration.
         """
         # Fetch candidate routes from routing provider
-        raw_candidates = await self.routes_provider.get_routes(
+        
+              
+        # Fetch candidate routes from routing provider
+
+
+        if request.travel_mode.value == "DRIVE":
+            routes_provider = (
+                OSRMRoutesClient(settings=self.settings)
+                if isinstance(self.routes_provider, GoogleRoutesClient)
+                else self.routes_provider
+            )
+        elif request.travel_mode.value in ("WALK", "BICYCLE", "TWO_WHEELER"):
+            routes_provider = ValhallaRoutesClient(settings=self.settings)
+        else:
+            routes_provider = self.routes_provider
+
+
+
+        raw_candidates = await routes_provider.get_routes(
             origin_lat=request.origin.latitude,
             origin_lng=request.origin.longitude,
             dest_lat=request.destination.latitude,
@@ -156,6 +181,7 @@ class RouteOptimizerService:
             travel_mode=request.travel_mode.value,
             compute_alternatives=request.compute_alternatives,
         )
+
 
         if not raw_candidates:
             raise HTTPException(

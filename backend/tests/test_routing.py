@@ -17,6 +17,8 @@ from app.services.google_air_quality import AirQualityReading, BaseAirQualityPro
 from app.services.google_routes import BaseRoutesProvider, GoogleRoutesClient, RawRouteCandidate
 from app.services.polyline import decode_polyline, haversine_distance, sample_polyline_coordinates
 from app.services.route_optimizer import RouteOptimizerService, get_route_optimizer
+from app.services.osrm_routes import OSRMRoutesClient
+from app.services.valhalla_routes import ValhallaRoutesClient
 
 client = TestClient(app)
 
@@ -501,3 +503,104 @@ def test_api_routes_endpoint_e2e_with_dependency_override():
         assert resp_alias2.status_code == 200
     finally:
         app.dependency_overrides.clear()
+
+@pytest.mark.anyio
+async def test_osrm_client_parses_multiple_routes():
+    routes_data = {
+        "code": "Ok",
+        "routes": [
+            {
+                "distance": 5000,
+                "duration": 600,
+                "geometry": "encoded_route_one",
+            },
+            {
+                "distance": 6500,
+                "duration": 750,
+                "geometry": "encoded_route_two",
+            },
+        ],
+    }
+
+    class MockResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return routes_data
+
+    class MockHTTPClient:
+        async def get(self, url, params, timeout):
+            assert params["alternatives"] == "true"
+            return MockResponse()
+
+    client = OSRMRoutesClient(
+        settings=Settings(),
+        client=MockHTTPClient(),
+    )
+
+    routes = await client.get_routes(
+        origin_lat=28.7501,
+        origin_lng=77.1177,
+        dest_lat=28.7380,
+        dest_lng=77.0820,
+        travel_mode="DRIVE",
+        compute_alternatives=True,
+    )
+
+    assert len(routes) == 2
+    assert routes[0].route_id == "osrm-route-1"
+    assert routes[0].distance_meters == 5000
+    assert routes[1].route_id == "osrm-route-2"
+    assert routes[1].distance_meters == 6500
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("travel_mode", "expected_costing"),
+    [
+        ("WALK", "pedestrian"),
+        ("BICYCLE", "bicycle"),
+        ("TWO_WHEELER", "motorcycle"),
+    ],
+)
+async def test_valhalla_client_uses_correct_costing(
+    travel_mode, expected_costing
+):
+    class MockResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "trip": {
+                    "summary": {"length": 4.5, "time": 900},
+                    "shape": "encoded_test_route",
+                }
+            }
+
+    class MockHTTPClient:
+        async def post(self, url, json, timeout):
+            assert url == ValhallaRoutesClient.ROUTES_API_URL
+            assert json["costing"] == expected_costing
+            return MockResponse()
+
+    client = ValhallaRoutesClient(
+        settings=Settings(),
+        client=MockHTTPClient(),
+    )
+
+    routes = await client.get_routes(
+        origin_lat=28.7501,
+        origin_lng=77.1177,
+        dest_lat=28.7380,
+        dest_lng=77.0820,
+        travel_mode=travel_mode,
+        compute_alternatives=False,
+    )
+
+    assert len(routes) == 1
+    assert routes[0].distance_meters == 4500
+    assert routes[0].duration_seconds == 900
+    assert routes[0].polyline_encoded == "encoded_test_route"
+

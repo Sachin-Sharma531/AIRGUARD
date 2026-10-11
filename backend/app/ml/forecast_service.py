@@ -36,11 +36,8 @@ def _get_model():
         if not MODEL_PATH.exists():
             raise FileNotFoundError("PM2.5 model artifact was not found.")
         with warnings.catch_warnings():
-            try:
-                from sklearn.exceptions import InconsistentVersionWarning
-                warnings.simplefilter("ignore", InconsistentVersionWarning)
-            except ImportError:
-                pass
+            # Suppress model version mismatch warnings during artifact unpickling
+            warnings.simplefilter("ignore")
             _model = joblib.load(MODEL_PATH)
 
     return _model
@@ -66,16 +63,30 @@ def get_available_locations() -> list:
     return sorted([str(loc) for loc in df["location"].dropna().unique()])
 
 
+def resolve_station_name(location: str, df: pd.DataFrame) -> str:
+    cleaned = location.strip()
+    if cleaned in df["location"].values:
+        return cleaned
+
+    normalized_input = cleaned.lower().replace(" ", "")
+    for loc in df["location"].dropna().unique():
+        if str(loc).lower().replace(" ", "") == normalized_input:
+            return str(loc)
+
+    return cleaned
+
+
 def predict_pollution(location: str) -> dict:
     df = _get_historical_data()
-    df = df[df["location"] == location].sort_values("timestamp")
+    resolved_location = resolve_station_name(location, df)
+    df_loc = df[df["location"] == resolved_location].sort_values("timestamp")
 
-    if len(df) < 4:
+    if len(df_loc) < 4:
         raise ValueError(
             f"Insufficient historical observations for location: {location}"
         )
 
-    recent = df.tail(4).reset_index(drop=True)
+    recent = df_loc.tail(4).reset_index(drop=True)
     differences = recent["timestamp"].diff().dropna()
 
     if not (differences == pd.Timedelta(hours=3)).all():
@@ -90,7 +101,7 @@ def predict_pollution(location: str) -> dict:
     day = current["timestamp"].dayofweek
 
     row = {
-        "location": location,
+        "location": resolved_location,
         "PM2.5": float(current["PM2.5"]),
         "pm25_lag_1": float(recent.iloc[-2]["PM2.5"]),
         "pm25_lag_2": float(recent.iloc[-3]["PM2.5"]),
@@ -109,7 +120,7 @@ def predict_pollution(location: str) -> dict:
     prediction = float(_get_model().predict(features)[0])
 
     return {
-        "location": location,
+        "location": resolved_location,
         "current_pm25": round(float(current["PM2.5"]), 2),
         "predicted_pm25": round(max(0.0, prediction), 2),
         "observation_time": current["timestamp"].isoformat(),

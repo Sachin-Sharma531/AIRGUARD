@@ -21,7 +21,7 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     return R * c
 
 
-def decode_polyline(encoded: str) -> List[Tuple[float, float]]:
+def decode_polyline(encoded: str, precision: int = 5) -> List[Tuple[float, float]]:
     """
     Decodes a Google encoded polyline string into a list of (latitude, longitude) tuples.
     Pure-Python implementation with zero external C dependencies.
@@ -62,7 +62,8 @@ def decode_polyline(encoded: str) -> List[Tuple[float, float]]:
         dlng = ~(result >> 1) if (result & 1) else (result >> 1)
         lng += dlng
 
-        coordinates.append((lat / 1e5, lng / 1e5))
+        factor = 10 ** precision
+        coordinates.append((lat / factor, lng / factor))
 
     return coordinates
 

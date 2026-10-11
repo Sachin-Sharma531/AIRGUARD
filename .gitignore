@@ -43,7 +43,7 @@ dist/
 .env.*.local
 frontend/.env.local
 
-# Large ML Model Artifacts and Datasets (Do NOT commit to git)
+# Large ML Model Artifacts and Datasets
 *.joblib
 *.pkl
 *.h5
@@ -51,4 +51,5 @@ frontend/.env.local
 *.csv
 **/app/ml/artifacts/*
 !**/app/ml/artifacts/.gitkeep
+!backend/app/ml/artifacts/pm25_model.joblib
 

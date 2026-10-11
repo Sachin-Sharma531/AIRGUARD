@@ -37,10 +37,10 @@ const DEFAULT_STATIONS = [
   'Delhi - DTU',
   'Delhi - Anand Vihar',
   'Delhi - Punjabi Bagh',
-  'Delhi - RK Puram',
+  'Delhi - R K Puram',
   'Delhi - Shadipur',
   'Delhi - Mandir Marg',
-  'Delhi - IGI Airport (T3)',
+  'Delhi - IGI Airport(T3)',
   'Delhi - Jahangirpuri',
   'Delhi - Rohini',
 ]
@@ -131,11 +131,14 @@ const DEMO_STATION_DATA = {
   'Delhi - Anand Vihar': { current: 452.0, predicted: 418.2 },
   'Delhi - Punjabi Bagh': { current: 395.0, predicted: 355.8 },
   'Delhi - RK Puram': { current: 362.5, predicted: 340.1 },
+  'Delhi - R K Puram': { current: 362.5, predicted: 340.1 },
   'Delhi - Shadipur': { current: 410.0, predicted: 378.6 },
   'Delhi - Mandir Marg': { current: 310.0, predicted: 288.0 },
   'Delhi - IGI Airport (T3)': { current: 285.0, predicted: 260.4 },
+  'Delhi - IGI Airport(T3)': { current: 285.0, predicted: 260.4 },
   'Delhi - Jahangirpuri': { current: 440.0, predicted: 398.5 },
   'Delhi - Rohini': { current: 415.0, predicted: 382.0 },
+  'Delhi - Alipur': { current: 370.0, predicted: 345.0 },
 }
 
 function makeDemoForecastResponse(location = 'Delhi - DTU') {
@@ -361,15 +364,23 @@ function App() {
           const response = await apiFetch(`/forecast/pm25?location=${encodeURIComponent(station)}`)
           const data = await response.json().catch(() => ({}))
           if (!response.ok) {
-            throw new Error(data.detail || `Forecast request failed with HTTP ${response.status}`)
+            const err = new Error(data.detail || `Forecast request failed with HTTP ${response.status}`)
+            err.isHttpError = true
+            throw err
           }
           setForecastResult(data)
           setBackendStatus('online')
         } catch (fetchErr) {
           // If backend is offline or network fails, gracefully display demo data with a clear notification
           setForecastResult(makeDemoForecastResponse(station))
-          setForecastError('Backend service is offline or unreachable on port 8000. Start it with `python -m uvicorn app.main:app --port 8000` or switch to Demo mode. Showing local prototype data.')
-          setBackendStatus('offline')
+          if (fetchErr.isHttpError) {
+            setForecastError(fetchErr.message)
+            // Backend is still online since it returned an HTTP response
+            setBackendStatus('online')
+          } else {
+            setForecastError('Backend service is offline or unreachable on port 8000. Start it with `python -m uvicorn app.main:app --port 8000` or switch to Demo mode. Showing local prototype data.')
+            setBackendStatus('offline')
+          }
         }
       }
     } catch (err) {
@@ -771,7 +782,11 @@ function App() {
                 <button className="primary-btn" disabled={loading}>{loading ? 'Analyzing routes…' : mode === 'demo' ? 'Try demo analysis →' : 'Analyze live routes →'}</button>
               </form>
               {error && <div className="error-card" role="alert"><strong>Could not analyze this trip</strong><span>{error}</span>{mode === 'live' && backendStatus === 'offline' && <small>Make sure the backend is running on port 8000. Instructions are in the project README.</small>}</div>}
-              <div className="privacy-note">{mode === 'demo' ? 'Synthetic data · No backend or API key needed' : 'Coordinates are sent to your backend to calculate routes'}</div>
+              <div className="privacy-note">
+  {mode === 'demo'
+    ? 'DEMO MODE: Illustrative sample routes, travel times, and pollution values. They are not calculated for your selected journey and are not live measurements.'
+    : 'Coordinates are sent to your backend to calculate routes'}
+</div>
               {mode === 'live' && <div className="location-hint">Tip: try DTU → Rohini first. For a custom address, enable Google Geocoding API on the same Google Cloud project.</div>}
             </div>
           </section>
@@ -792,6 +807,17 @@ function App() {
             </div>
 
             {tripResult.source === 'synthetic' && <div className="demo-notice"><strong>DEMO DATA</strong><span>These values are synthetic examples, not live measurements. Switch to Live API mode to use the backend.</span></div>}
+
+{allRoutes.length === 1 && (
+  <div className="limitations-box">
+    <strong>Only one route available</strong>
+    <p>
+      The routing provider returned only one candidate route.
+      AIRGUARD cannot compare alternatives or confirm that this
+      route has lower pollution exposure than other routes.
+    </p>
+  </div>
+)}
 
             <div className="metrics-row">
               <div className="metric"><span>AVERAGE AQI</span><strong>{recommendedRoute?.average_aqi != null ? Number(recommendedRoute.average_aqi).toFixed(1) : '—'}</strong><small>{recommendedRoute?.air_quality_category || 'No reading'}</small></div>
@@ -827,10 +853,36 @@ function App() {
                 <div className="map-label">BACKEND RECOMMENDATION</div>
                 <h3>{displayRouteName(recommendedRoute || {}, 0)}</h3>
                 <p>{liveData.summary || 'The backend selected this route according to your chosen preference.'}</p>
-                <div className="reduction"><strong>{reduction === null ? '—' : `${reduction}%`}</strong><span>{reduction === null ? 'No comparable exposure reduction available' : 'lower exposure index than fastest route'}</span></div>
+                
+<div className="reduction">
+  <strong>{reduction === null ? '—' : `${reduction}%`}</strong>
+  <span>
+    {reduction === null
+      ? allRoutes.length < 2
+        ? 'Cannot compare: only one route available'
+        : 'No valid exposure reduction comparison available'
+      : 'lower estimated exposure index than the fastest route'}
+  </span>
+</div>
+
                 <div className="reason-line"><span>Travel time</span><strong>{recommendedRoute?.duration_formatted || 'Unavailable'}</strong></div>
                 <div className="reason-line"><span>Distance</span><strong>{recommendedRoute?.distance_formatted || 'Unavailable'}</strong></div>
-                <div className="reason-line"><span>Air quality data</span><strong>{recommendedRoute?.exposure_status || 'Unavailable'}</strong></div>
+               
+<div className="reason-line">
+  <span>Air quality data</span>
+  <strong>{recommendedRoute?.exposure_status || 'Unavailable'}</strong>
+</div>
+<div className="reason-line">
+  <span>Data source</span>
+  <strong>
+    {tripResult.source === 'synthetic'
+      ? 'Demo sample'
+      : recommendedRoute?.average_aqi != null
+        ? 'Open-Meteo model estimate'
+        : 'Unavailable'}
+  </strong>
+</div>
+
 
                 <div className="route-forecast-callout">
                   <div className="route-forecast-callout-header">
