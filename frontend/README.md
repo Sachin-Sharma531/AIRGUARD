@@ -2,6 +2,14 @@
 
 React + Vite frontend for the AIRGUARD pollution-aware route planner.
 
+## 🌐 Live Deployments & Links
+
+- **Live Web Application**: [https://main.d22vk6edkcne12.amplifyapp.com/](https://main.d22vk6edkcne12.amplifyapp.com/)
+- **Live Backend API**: [https://ai-2b2d0254201647a5aa94f05d776c8c29.ecs.ap-southeast-2.on.aws/](https://ai-2b2d0254201647a5aa94f05d776c8c29.ecs.ap-southeast-2.on.aws/)
+- **Backend API Documentation (Swagger UI)**: [https://ai-2b2d0254201647a5aa94f05d776c8c29.ecs.ap-southeast-2.on.aws/docs](https://ai-2b2d0254201647a5aa94f05d776c8c29.ecs.ap-southeast-2.on.aws/docs)
+
+---
+
 ## Run locally
 
 Requirements: Node.js 18+ and npm.

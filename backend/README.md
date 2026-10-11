@@ -4,6 +4,14 @@ The backend API service for **AIRGUARD** (Air Pollution Monitoring & Prediction 
 
 ---
 
+## 🌐 Live Deployments & Endpoints
+
+- **Live Backend API**: [https://ai-2b2d0254201647a5aa94f05d776c8c29.ecs.ap-southeast-2.on.aws/](https://ai-2b2d0254201647a5aa94f05d776c8c29.ecs.ap-southeast-2.on.aws/)
+- **Backend API Documentation (Swagger UI)**: [https://ai-2b2d0254201647a5aa94f05d776c8c29.ecs.ap-southeast-2.on.aws/docs](https://ai-2b2d0254201647a5aa94f05d776c8c29.ecs.ap-southeast-2.on.aws/docs)
+- **Live Web Application (Frontend)**: [https://main.d22vk6edkcne12.amplifyapp.com/](https://main.d22vk6edkcne12.amplifyapp.com/)
+
+---
+
 ## 1. Directory Structure
 
 ```text
